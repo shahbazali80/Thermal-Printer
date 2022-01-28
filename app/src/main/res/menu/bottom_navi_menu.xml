@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/font"
+        android:title="Font"
+        android:icon="@drawable/font_size_icon"/>
+
+    <item
+        android:id="@+id/size"
+        android:title="Size"
+        android:icon="@drawable/font_size"/>
+
+    <item
+        android:id="@+id/format"
+        android:title="Format"
+        android:icon="@drawable/font_format"/>
+
+    <item
+        android:id="@+id/doneNote"
+        android:title="Save"
+        android:icon="@drawable/tick_circle"/>
+</menu>

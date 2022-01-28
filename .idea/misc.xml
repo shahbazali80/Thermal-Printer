@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="..\:/BackUp SOMS/ThermalPrinter/app/src/main/res/layout/activity_new_note.xml" value="0.20102564102564102" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/bottom_navigation_selector.xml" value="0.2203125" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/custom_circle_add_notes_btn.xml" value="0.14" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/custom_circle_img.xml" value="0.16296296296296298" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_add_24.xml" value="0.16296296296296298" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_done_24.xml" value="0.2203125" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_info_24.xml" value="0.16296296296296298" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_local_printshop_24.xml" value="0.16296296296296298" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_mode_edit_24.xml" value="0.16944444444444445" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_settings_24.xml" value="0.16296296296296298" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/radio_normal.xml" value="0.2203125" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/radio_selected.xml" value="0.2203125" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/radio_selector.xml" value="0.2203125" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/rg_background.xml" value="0.16296296296296298" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/text_colors.xml" value="0.2203125" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/font/font_style.xml" value="0.15925925925925927" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/font/simonetta_regular.xml" value="0.15925925925925927" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/layout/activity_main.xml" value="0.19010416666666666" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/layout/activity_new_note.xml" value="0.20416666666666666" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/layout/activity_splash_screen.xml" value="0.20416666666666666" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/layout/custom_font_format_layout.xml" value="0.16" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/layout/custom_font_layout.xml" value="0.16" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/layout/custom_font_size_dialog_layout.xml" value="0.12037037037037036" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/menu/bottom_navi_menu.xml" value="0.20416666666666666" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/menu/new_note_toolbar_menu.xml" value="0.12037037037037036" />
+      </map>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" default="true" project-jdk-name="1.8" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/build/classes" />
+  </component>
+  <component name="ProjectType">
+    <option name="id" value="Android" />
+  </component>
+</project>
