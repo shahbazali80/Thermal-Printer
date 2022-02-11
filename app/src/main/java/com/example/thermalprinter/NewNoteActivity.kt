@@ -3,13 +3,13 @@ package com.example.thermalprinter
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothHeadset
 import android.bluetooth.BluetoothSocket
 import android.content.ClipboardManager
 import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.text.SpannableString
@@ -34,6 +34,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+
 
 class NewNoteActivity : AppCompatActivity() {
 
