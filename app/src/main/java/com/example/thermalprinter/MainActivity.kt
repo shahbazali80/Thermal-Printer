@@ -1,34 +1,61 @@
-package com.example.thermalprinter;
+package com.example.thermalprinter
 
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity
+import android.widget.TextView
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import android.os.Bundle
+import com.example.thermalprinter.R
+import android.content.Intent
+import android.view.View
+import androidx.core.view.isGone
+import androidx.core.view.isVisible
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.thermalprinter.NewNoteActivity
+import com.example.thermalprinter.adapter.NoteAdapter
+import com.example.thermalprinter.viewmodel.NoteViewModel
+import kotlinx.android.synthetic.main.activity_main.*
 
-import android.content.Intent;
-import android.os.Bundle;
-import android.view.View;
-import android.widget.ImageView;
-import android.widget.TextView;
+class MainActivity : AppCompatActivity() {
 
-public class MainActivity extends AppCompatActivity {
+    lateinit var viewModal: NoteViewModel
 
-    TextView tv_wlcm_lines;
-    ImageView newNoteBtn;
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        recyclerView.layoutManager = LinearLayoutManager(this)
 
-        tv_wlcm_lines=findViewById(R.id.tv_wlcm_lines);
-        newNoteBtn=findViewById(R.id.newNoteBtn);
+        val adapter = NoteAdapter(this)
 
-        tv_wlcm_lines.setText("Bluetooth Notes Printer helps to take prints via thermal, lets get started with your first note " +
-                "by clicking on 'New Note' button bottom right corner");
+        recyclerView.adapter = adapter
 
-        newNoteBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(getApplicationContext(),NewNoteActivity.class));
+        viewModal = ViewModelProvider(
+            this,
+            ViewModelProvider.AndroidViewModelFactory.getInstance(application)
+        ).get(NoteViewModel::class.java)
+
+        viewModal.allNotes.observe(this, Observer { list ->
+            list?.let {
+                if(it.isEmpty()){
+                    tv_welcmNote.visibility = View.VISIBLE
+                    tv_welcmNote.setText(
+                        "Bluetooth Notes Printer helps to take prints via thermal, lets get started with your first note " +
+                                "by clicking on 'New Note' button bottom right corner"
+                    )
+                } else {
+                    linearLayout.visibility = View.VISIBLE
+                    tv_welcm.setText("Notes")
+                    adapter.setList(it)
+                }
             }
-        });
+        })
+
+        addFabBtn.setOnClickListener(View.OnClickListener {
+            val intent = Intent(this, NewNoteActivity::class.java)
+            intent.putExtra("noteType", "New")
+            startActivity(intent)
+        })
     }
 }

@@ -1,234 +1,296 @@
-package com.example.thermalprinter;
+package com.example.thermalprinter
 
-import static android.graphics.Typeface.BOLD;
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothHeadset
+import android.bluetooth.BluetoothSocket
+import android.content.ClipboardManager
+import android.content.DialogInterface
+import android.content.Intent
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.os.Bundle
+import android.os.Handler
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.StyleSpan
+import android.view.*
+import android.widget.*
+import android.widget.AdapterView.OnItemClickListener
+import android.widget.SeekBar.OnSeekBarChangeListener
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.res.ResourcesCompat
+import androidx.lifecycle.ViewModelProvider
+import com.example.thermalprinter.models.FaceModel
+import com.example.thermalprinter.models.NoteModel
+import com.example.thermalprinter.viewmodel.NoteViewModel
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import kotlinx.android.synthetic.main.activity_new_note.*
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.*
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.core.content.res.ResourcesCompat;
+class NewNoteActivity : AppCompatActivity() {
 
-import android.Manifest;
-import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.database.Cursor;
-import android.graphics.Paint;
-import android.graphics.Typeface;
-import android.os.Bundle;
-import android.os.Handler;
-import android.text.InputType;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.StyleSpan;
-import android.util.Log;
-import android.view.Gravity;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.WindowManager;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.CompoundButton;
-import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.ListView;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
-import android.widget.SeekBar;
-import android.widget.Switch;
-import android.widget.TextView;
-import android.widget.Toast;
+    var sizeDialog: BottomSheetDialog? = null
+    var formatDialog: BottomSheetDialog? = null
+    var fontFamilyDialog: BottomSheetDialog? = null
+    var seekbarValue = 0
+    var selectedTxt: String? = null
+    lateinit var mBluetoothAdapter: BluetoothAdapter
+    lateinit var mmSocket: BluetoothSocket
+    lateinit var mmDevice: BluetoothDevice
+    var mmOutputStream: OutputStream? = null
+    var mmInputStream: InputStream? = null
+    var workerThread: Thread? = null
+    lateinit var readBuffer: ByteArray
+    var readBufferPosition = 0
 
-import com.example.thermalprinter.models.FacetypeModel;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
+    @Volatile
+    var stopWorker = false
+    lateinit var BTDeviceList: MutableList<String>
+    var list: MutableList<FaceModel>? = null
+    var isBold = false
+    var isItalic = false
+    var isUnderLine = false
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+    var noteType : String ? = null
+    var noteTitle : String ? = null
+    var noteDescription : String ? = null
+    var noteDate : String ? = null
+    var toolbarTitle : String ? = null
+    var currentDateAndTime: String ?  = null
 
-public class NewNoteActivity extends AppCompatActivity {
+    lateinit var viewModal: NoteViewModel
+    var noteID = -1;
 
-    Toolbar toolbar;
-    EditText et_note;
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_new_note)
 
-    BottomNavigationView bottomNavigationView;
+        setSupportActionBar(newNoteToolbar)
+        supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
-    BottomSheetDialog sizeDialog, formatDialog, fontFamilyDialog;
+        fontFamilyDialog = BottomSheetDialog(this)
+        sizeDialog = BottomSheetDialog(this)
+        formatDialog = BottomSheetDialog(this)
+        openFontDialog()
+        openFontSizeDialog()
+        openFontFormatDialog()
+        list = ArrayList()
+        BTDeviceList = ArrayList()
 
-    int seekbarValue;
-    String selectedTxt;
+        var sdf = SimpleDateFormat("dd/MMM/yyyy")
+        currentDateAndTime = sdf.format(Date())
 
-    List<FacetypeModel> list;
+        noteType = intent.getStringExtra("noteType")
+        if (noteType.equals("Edit")) {
+            noteTitle = intent.getStringExtra("noteTitle")
+            noteDescription = intent.getStringExtra("noteDescription")
+            noteDate = intent.getStringExtra("noteDate")
+            noteID = intent.getIntExtra("noteId", -1)
+            supportActionBar!!.setTitle(noteTitle)
+            et_note.setText(noteDescription)
 
-    BluetoothAdapter mBluetoothAdapter;
-    BluetoothSocket mmSocket;
-    BluetoothDevice mmDevice;
+            toolbarTitle=noteTitle
+        } else
+            toolbarTitle="New Note 001"
 
-    OutputStream mmOutputStream;
-    InputStream mmInputStream;
-    Thread workerThread;
+        viewModal = ViewModelProvider(
+            this,
+            ViewModelProvider.AndroidViewModelFactory.getInstance(application)
+        ).get(NoteViewModel::class.java)
 
-    byte[] readBuffer;
-    int readBufferPosition;
-    volatile boolean stopWorker;
+        newNoteToolbar.setOnClickListener(View.OnClickListener {
+            openEditToolbarTile()
+        })
 
-    List<String> BTDeviceList;
-
-    boolean isBold = false, isItalic = false, isUnderLine = false;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_new_note);
-
-        toolbar = findViewById(R.id.newNoteToolbar);
-        setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-
-        et_note = findViewById(R.id.et_note);
-
-        fontFamilyDialog = new BottomSheetDialog(this);
-        sizeDialog = new BottomSheetDialog(this);
-        formatDialog = new BottomSheetDialog(this);
-        openFontDialog();
-        openFontSizeDialog();
-        openFontFormatDialog();
-
-        list = new ArrayList<>();
-        BTDeviceList = new ArrayList<>();
-
-        toolbar.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(getApplicationContext(), "Toolbar title clicked", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        bottomNavigationView = findViewById(R.id.bottomNavigationView);
-        bottomNavigationView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
-
-        fontFamilyDialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-        sizeDialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-        formatDialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        bottomNavigationView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
+        fontFamilyDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        sizeDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        formatDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
 
         //getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
     }
 
-    private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
-            = new BottomNavigationView.OnNavigationItemSelectedListener() {
+    private fun openEditToolbarTile() {
+        val dialogBuilder = android.app.AlertDialog.Builder(this)
+        val inflater = this.layoutInflater
+        val dialogView = inflater.inflate(R.layout.edit_toolbar_dialog, null)
+        dialogBuilder.setView(dialogView)
 
-        @Override
-        public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-            {
-                switch (item.getItemId()) {
-                    case R.id.font:
-                        fontFamilyDialog.show();
-                        break;
-                    case R.id.size:
-                        sizeDialog.show();
-                        break;
-                    case R.id.format:
-                        formatDialog.show();
-                        break;
-                    case R.id.doneNote:
-                        SpannableString spannableString = new SpannableString(et_note.getText().toString());
-                        StringBuffer buffer = new StringBuffer();
-                        //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
-                        for (FacetypeModel model : list) {
-                            buffer.append(model.getStart());
-                            buffer.append(model.getEnd() + "\n");
+        val et_toolbar = dialogView.findViewById(R.id.et_toolbar_edit) as TextView
 
-                            StyleSpan boldSpan = new StyleSpan(BOLD);
+        dialogBuilder.setTitle("Update Title")
+        //dialogBuilder.setMessage("Enter data below")
+        dialogBuilder.setPositiveButton("Update", DialogInterface.OnClickListener { _, _ ->
+            toolbarTitle = et_toolbar.text.toString()
+            supportActionBar!!.setTitle(toolbarTitle)
+        })
+        dialogBuilder.setNegativeButton("Cancel", DialogInterface.OnClickListener { dialog, which ->
+            //pass
+        })
+        val b = dialogBuilder.create()
+        b.show()
+    }
 
-                            spannableString.setSpan(boldSpan, model.getStart(), model.getEnd(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    private val mOnNavigationItemSelectedListener: BottomNavigationView.OnNavigationItemSelectedListener =
+        object : BottomNavigationView.OnNavigationItemSelectedListener {
+            override fun onNavigationItemSelected(item: MenuItem): Boolean {
+                run {
+                    when (item.itemId) {
+                        R.id.font -> fontFamilyDialog!!.show()
+                        R.id.size -> sizeDialog!!.show()
+                        R.id.format -> formatDialog!!.show()
+                        R.id.doneNote -> {
+                            /*SpannableString spannableString = new SpannableString(et_note.getText().toString());
+                            StringBuffer buffer = new StringBuffer();
+                            //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
+                            for (FaceModel model : list) {
+                                buffer.append(model.getStart());
+                                buffer.append(model.getEnd() + "\n");
+
+                                StyleSpan boldSpan = new StyleSpan(BOLD);
+
+                                spannableString.setSpan(boldSpan, model.getStart(), model.getEnd(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            }
+
+                            et_note.setText(spannableString);
+                            Toast.makeText(getApplicationContext(), buffer, Toast.LENGTH_SHORT).show();*/
+                            addUpdateNote()
                         }
-
-                        et_note.setText(spannableString);
-                        Toast.makeText(getApplicationContext(), buffer, Toast.LENGTH_SHORT).show();
-
-                        break;
+                    }
+                    return false
                 }
-                return false;
             }
         }
-    };
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        //return super.onCreateOptionsMenu(menu);
-        getMenuInflater().inflate(R.menu.new_note_toolbar_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_printerOut:
-                try {
-                    sendData();
-                    //boldText();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Toast.makeText(getApplicationContext(), "Error Occur During Sending Data\n"+e.toString(), Toast.LENGTH_SHORT).show();
-                }
-                return true;
-            case R.id.menu_findPrinter:
-                findBT();
-                return true;
-            case R.id.menu_setting:
-                Toast.makeText(getApplicationContext(), "Setting", Toast.LENGTH_SHORT).show();
-                return true;
-            case R.id.menu_about:
-                StringBuffer buffer=new StringBuffer();
-                for (String btDevice: BTDeviceList) {
-                    buffer.append(btDevice);
-                }
-
-                Toast.makeText(getApplicationContext(), buffer, Toast.LENGTH_SHORT).show();
-
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
+    private fun addUpdateNote() {
+        val noteDescription = et_note.text.toString()
+        if (noteType.equals("Edit")) {
+            if (noteDescription.isNotEmpty()) {
+                val updatedNote = NoteModel(toolbarTitle.toString(), noteDescription, currentDateAndTime.toString())
+                updatedNote.id = noteID
+                viewModal.updateNote(updatedNote)
+                Toast.makeText(this@NewNoteActivity, "Successfully Updated Note", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this@NewNoteActivity,MainActivity::class.java))
+                finish()
+            }
+        } else {
+            if (noteDescription.isNotEmpty()) {
+                viewModal.addNote(NoteModel(toolbarTitle.toString(), noteDescription, currentDateAndTime.toString()))
+                Toast.makeText(this@NewNoteActivity, "Successfully Inserted Note", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this@NewNoteActivity,MainActivity::class.java))
+                finish()
+            }
         }
     }
 
-    private void boldText() {
-        int start = et_note.getSelectionStart();
-        int end = et_note.getSelectionEnd();
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        //return super.onCreateOptionsMenu(menu);
+        menuInflater.inflate(R.menu.new_note_toolbar_menu, menu)
+        if(noteType.equals("New")) {
+            menu.findItem(R.id.menu_delete).isVisible=false
+        }
+
+        return true
+    }
+
+    @SuppressLint("MissingPermission")
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_printerOut -> {
+                try {
+                    sendData()
+                    //boldText();
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                    Toast.makeText(applicationContext, "Error Occur During Sending Data\n$e", Toast.LENGTH_SHORT).show()
+                }
+                true
+            }
+            R.id.menu_findPrinter -> {
+                findBT()
+                true
+            }
+            R.id.menu_delete -> {
+               deleteNote()
+                true
+            }
+            R.id.menu_setting -> {
+                Toast.makeText(applicationContext, "Setting", Toast.LENGTH_SHORT).show()
+                true
+            }
+            R.id.menu_about -> {
+                true
+            }
+            else -> //boldText();
+            {
+                super.onOptionsItemSelected(item)
+            }
+        }
+    }
+
+    private fun deleteNote() {
+        val dialogBuilder = android.app.AlertDialog.Builder(this)
+        val inflater = this.layoutInflater
+        val dialogView = inflater.inflate(R.layout.delete_dialog, null)
+        dialogBuilder.setView(dialogView)
+
+        val del_note = dialogView.findViewById(R.id.del_note) as TextView
+
+        del_note.setText("Are you sure you want to delete it?")
+
+        val updatedNote = NoteModel("Title Note 001", et_note.text.toString(), noteDate.toString())
+        updatedNote.id = noteID
+
+        dialogBuilder.setTitle("Delete Note")
+        //dialogBuilder.setMessage("Enter data below")
+        dialogBuilder.setPositiveButton("Delete", DialogInterface.OnClickListener { _, _ ->
+            viewModal.deleteNote(updatedNote)
+            Toast.makeText(this, "Note Deleted", Toast.LENGTH_LONG).show()
+            startActivity(Intent(this@NewNoteActivity,MainActivity::class.java))
+            finish()
+        })
+        dialogBuilder.setNegativeButton("Close", DialogInterface.OnClickListener { dialog, which ->
+            //pass
+        })
+        val b = dialogBuilder.create()
+        b.show()
+    }
+
+    private fun boldText() {
+        val start = et_note!!.selectionStart
+        val end = et_note!!.selectionEnd
 
         //StringBuffer buffer=new StringBuffer();
         //buffer.append(start+" "+end+"\n");
-
-        list.add(new FacetypeModel(start, end, 1));
-
-        SpannableString spannableString = new SpannableString(et_note.getText().toString());
-        StringBuffer buffer = new StringBuffer();
+        list!!.add(FaceModel(start, end, 1))
+        val spannableString = SpannableString(et_note!!.text.toString())
+        val buffer = StringBuffer()
         //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
-        for (FacetypeModel model : list) {
-            buffer.append(model.getStart());
-            buffer.append(model.getEnd() + "\n");
-
-            StyleSpan boldSpan = new StyleSpan(BOLD);
-
-            spannableString.setSpan(boldSpan, model.getStart(), model.getEnd(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        for (model in list!!) {
+            buffer.append(model.start)
+            buffer.append(
+                """
+                    ${model.end}
+                    
+                    """.trimIndent()
+            )
+            val boldSpan = StyleSpan(Typeface.BOLD)
+            spannableString.setSpan(
+                boldSpan,
+                model.start,
+                model.end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
         }
-
-        et_note.setText(spannableString);
+        et_note!!.setText(spannableString)
 
         /*SpannableString spannableString=new SpannableString(et_note.getText().toString());
 
@@ -238,466 +300,395 @@ public class NewNoteActivity extends AppCompatActivity {
         et_note.setText(spannableString);*/
 
         //et_note.setHighlightColor(ContextCompat.getColor(this, R.color.purple_200));
-        Toast.makeText(getApplicationContext(), buffer, Toast.LENGTH_SHORT).show();
+        Toast.makeText(applicationContext, buffer, Toast.LENGTH_SHORT).show()
     }
 
-    private void selectText() {
-        ClipboardManager clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-        ClipData clipData = clipboardManager.getPrimaryClip();
-        ClipData.Item item = clipData.getItemAt(0);
-        selectedTxt = item.getText().toString();
+    private fun selectText() {
+        val clipboardManager = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val clipData = clipboardManager.primaryClip
+        val item = clipData!!.getItemAt(0)
+        selectedTxt = item.text.toString()
     }
 
-    private void openFontFormatDialog() {
-        View view = getLayoutInflater().inflate(R.layout.custom_font_format_layout, null, false);
-
-        ImageView closeFormatDailog = view.findViewById(R.id.fontFormatClose);
-        RadioButton rb_bold = view.findViewById(R.id.rb_bold);
-        RadioButton rb_italic = view.findViewById(R.id.rb_italic);
-        RadioButton rb_underLine = view.findViewById(R.id.rb_underLine);
-        RadioGroup rg_fontJustify = view.findViewById(R.id.rg_fontJustify);
-
-        closeFormatDailog.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                formatDialog.cancel();
+    private fun openFontFormatDialog() {
+        val view = layoutInflater.inflate(R.layout.custom_font_format_layout, null, false)
+        val closeFormatDailog = view.findViewById<ImageView>(R.id.fontFormatClose)
+        val rb_bold = view.findViewById<RadioButton>(R.id.rb_bold)
+        val rb_italic = view.findViewById<RadioButton>(R.id.rb_italic)
+        val rb_underLine = view.findViewById<RadioButton>(R.id.rb_underLine)
+        val rg_fontJustify = view.findViewById<RadioGroup>(R.id.rg_fontJustify)
+        closeFormatDailog.setOnClickListener { formatDialog!!.cancel() }
+        rb_bold.setOnClickListener {
+            if (isBold) {
+                isBold = false
+                //et_note.setTypeface(et_note.getTypeface(), Typeface.NORMAL);
+                //et_note.setPaintFlags(et_note.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+                rb_bold.isChecked = false
+            } else {
+                isBold = true
+                if (isItalic) et_note!!.setTypeface(
+                    et_note!!.typeface,
+                    Typeface.ITALIC
+                ) else et_note!!.setTypeface(
+                    et_note!!.typeface, Typeface.BOLD
+                )
+                rb_bold.isChecked = true
             }
-        });
-
-        rb_bold.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("WrongConstant")
-            @Override
-            public void onClick(View view) {
-                if (isBold) {
-                    isBold = false;
-                    //et_note.setTypeface(et_note.getTypeface(), Typeface.NORMAL);
-                    //et_note.setPaintFlags(et_note.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
-                    rb_bold.setChecked(false);
-                } else {
-                    isBold = true;
-                    if (isItalic)
-                        et_note.setTypeface(et_note.getTypeface(), Typeface.ITALIC | Typeface.BOLD);
-                    else
-                        et_note.setTypeface(et_note.getTypeface(), BOLD);
-                    rb_bold.setChecked(true);
+        }
+        rb_italic.setOnClickListener {
+            if (isItalic) {
+                isItalic = false
+                //et_note.setTypeface(et_note.getTypeface(), Typeface.NORMAL);
+                //et_note.setPaintFlags(et_note.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+                rb_italic.isChecked = false
+            } else {
+                isItalic = true
+                if (isBold) et_note!!.setTypeface(
+                    et_note!!.typeface,
+                    Typeface.ITALIC
+                ) else et_note!!.setTypeface(
+                    et_note!!.typeface, Typeface.ITALIC
+                )
+                rb_italic.isChecked = true
+            }
+        }
+        rb_underLine.setOnClickListener {
+            if (isUnderLine) {
+                isUnderLine = false
+                //et_note.setPaintFlags(et_note.getPaintFlags() | Paint.C);
+                rb_underLine.isChecked = false
+            } else {
+                isUnderLine = true
+                et_note!!.paintFlags = et_note!!.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+                rb_underLine.isChecked = true
+            }
+        }
+        rg_fontJustify.setOnCheckedChangeListener(RadioGroup.OnCheckedChangeListener { radioGroup, i ->
+            when (i) {
+                R.id.rb_left -> {
+                    et_note!!.gravity = Gravity.LEFT
+                    return@OnCheckedChangeListener
+                }
+                R.id.rb_center -> {
+                    et_note!!.gravity = Gravity.CENTER
+                    return@OnCheckedChangeListener
+                }
+                R.id.rb_right -> {
+                    et_note!!.gravity = Gravity.RIGHT
+                    return@OnCheckedChangeListener
                 }
             }
-        });
-
-        rb_italic.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("WrongConstant")
-            @Override
-            public void onClick(View view) {
-                if (isItalic) {
-                    isItalic = false;
-                    //et_note.setTypeface(et_note.getTypeface(), Typeface.NORMAL);
-                    //et_note.setPaintFlags(et_note.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
-                    rb_italic.setChecked(false);
-                } else {
-                    isItalic = true;
-
-                    if (isBold)
-                        et_note.setTypeface(et_note.getTypeface(), Typeface.ITALIC | Typeface.BOLD);
-                    else
-                        et_note.setTypeface(et_note.getTypeface(), Typeface.ITALIC);
-
-                    rb_italic.setChecked(true);
-                }
-            }
-        });
-
-        rb_underLine.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (isUnderLine) {
-                    isUnderLine = false;
-                    //et_note.setPaintFlags(et_note.getPaintFlags() | Paint.C);
-                    rb_underLine.setChecked(false);
-                } else {
-                    isUnderLine = true;
-                    et_note.setPaintFlags(et_note.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
-                    rb_underLine.setChecked(true);
-                }
-            }
-        });
-
-        rg_fontJustify.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(RadioGroup radioGroup, int i) {
-
-                switch (i) {
-                    case R.id.rb_left:
-                        et_note.setGravity(Gravity.LEFT);
-                        return;
-                    case R.id.rb_center:
-                        et_note.setGravity(Gravity.CENTER);
-                        return;
-                    case R.id.rb_right:
-                        et_note.setGravity(Gravity.RIGHT);
-                        return;
-                }
-            }
-        });
-        formatDialog.setContentView(view);
+        })
+        formatDialog!!.setContentView(view)
     }
 
-    private void openFontSizeDialog() {
-
-        View view = getLayoutInflater().inflate(R.layout.custom_font_size_dialog_layout, null, false);
-
-        ImageView close = view.findViewById(R.id.fontSizeClose);
-        TextView fontSizeShow = view.findViewById(R.id.fontSizeTvShow);
-        SeekBar seekBar = view.findViewById(R.id.fontSizeSeekbar);
-
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                seekbarValue = i;
+    private fun openFontSizeDialog() {
+        val view = layoutInflater.inflate(R.layout.custom_font_size_dialog_layout, null, false)
+        val close = view.findViewById<ImageView>(R.id.fontSizeClose)
+        val fontSizeShow = view.findViewById<TextView>(R.id.fontSizeTvShow)
+        val seekBar = view.findViewById<SeekBar>(R.id.fontSizeSeekbar)
+        seekBar.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
+                seekbarValue = i
             }
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {
+                et_note!!.textSize = seekbarValue.toFloat()
+                fontSizeShow.text = seekbarValue.toString() + ""
             }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                et_note.setTextSize(seekbarValue);
-                fontSizeShow.setText(seekbarValue + "");
-            }
-        });
-
-        close.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                sizeDialog.cancel();
-            }
-        });
-
-        sizeDialog.setContentView(view);
+        })
+        close.setOnClickListener { sizeDialog!!.cancel() }
+        sizeDialog!!.setContentView(view)
     }
 
-    private void openFontDialog() {
-        View view = getLayoutInflater().inflate(R.layout.custom_font_layout, null, false);
-
-        TextView font_abril_fatface = view.findViewById(R.id.font_abril_fatface);
-        TextView font_alegreya_sans_regular = view.findViewById(R.id.font_alegreya_sans_regular);
-        TextView font_abeezee_italic = view.findViewById(R.id.font_abeezee_italic);
-        TextView font_calligraffitti = view.findViewById(R.id.font_calligraffitti);
-        TextView font_cookie_regular = view.findViewById(R.id.font_cookie_regular);
-        TextView font_simonetta_italic = view.findViewById(R.id.font_simonetta_italic);
-        ImageView closeDialog = view.findViewById(R.id.fontClose);
-
-        closeDialog.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                fontFamilyDialog.cancel();
-            }
-        });
-
-        font_abril_fatface.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Typeface typeface = ResourcesCompat.getFont(getApplicationContext(), R.font.abril_fatface);
-                et_note.setTypeface(typeface);
-                font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0);
-                font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-            }
-        });
-
-        font_alegreya_sans_regular.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Typeface typeface = ResourcesCompat.getFont(getApplicationContext(), R.font.alegreya_sans_regular);
-                et_note.setTypeface(typeface);
-
-                font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0);
-                font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-            }
-        });
-
-        font_abeezee_italic.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Typeface typeface = ResourcesCompat.getFont(getApplicationContext(), R.font.abeezee_italic);
-                et_note.setTypeface(typeface);
-
-                font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0);
-                font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-            }
-        });
-
-        font_calligraffitti.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Typeface typeface = ResourcesCompat.getFont(getApplicationContext(), R.font.calligraffitti);
-                et_note.setTypeface(typeface);
-
-                font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0);
-                font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-            }
-        });
-
-        font_cookie_regular.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Typeface typeface = ResourcesCompat.getFont(getApplicationContext(), R.font.cookie_regular);
-                et_note.setTypeface(typeface);
-
-                font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0);
-                font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-            }
-        });
-
-        font_simonetta_italic.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Typeface typeface = ResourcesCompat.getFont(getApplicationContext(), R.font.simonetta_italic);
-                et_note.setTypeface(typeface);
-
-                font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
-                font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0);
-            }
-        });
-
-        fontFamilyDialog.setContentView(view);
+    private fun openFontDialog() {
+        val view = layoutInflater.inflate(R.layout.custom_font_layout, null, false)
+        val font_abril_fatface = view.findViewById<TextView>(R.id.font_abril_fatface)
+        val font_alegreya_sans_regular =
+            view.findViewById<TextView>(R.id.font_alegreya_sans_regular)
+        val font_abeezee_italic = view.findViewById<TextView>(R.id.font_abeezee_italic)
+        val font_calligraffitti = view.findViewById<TextView>(R.id.font_calligraffitti)
+        val font_cookie_regular = view.findViewById<TextView>(R.id.font_cookie_regular)
+        val font_simonetta_italic = view.findViewById<TextView>(R.id.font_simonetta_italic)
+        val closeDialog = view.findViewById<ImageView>(R.id.fontClose)
+        closeDialog.setOnClickListener { fontFamilyDialog!!.cancel() }
+        font_abril_fatface.setOnClickListener {
+            val typeface = ResourcesCompat.getFont(applicationContext, R.font.abril_fatface)
+            et_note!!.typeface = typeface
+            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(
+                0,
+                0,
+                R.drawable.ic_baseline_done_24,
+                0
+            )
+            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+        }
+        font_alegreya_sans_regular.setOnClickListener {
+            val typeface = ResourcesCompat.getFont(applicationContext, R.font.alegreya_sans_regular)
+            et_note!!.typeface = typeface
+            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(
+                0,
+                0,
+                R.drawable.ic_baseline_done_24,
+                0
+            )
+            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+        }
+        font_abeezee_italic.setOnClickListener {
+            val typeface = ResourcesCompat.getFont(applicationContext, R.font.abeezee_italic)
+            et_note!!.typeface = typeface
+            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(
+                0,
+                0,
+                R.drawable.ic_baseline_done_24,
+                0
+            )
+            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+        }
+        font_calligraffitti.setOnClickListener {
+            val typeface = ResourcesCompat.getFont(applicationContext, R.font.calligraffitti)
+            et_note!!.typeface = typeface
+            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(
+                0,
+                0,
+                R.drawable.ic_baseline_done_24,
+                0
+            )
+            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+        }
+        font_cookie_regular.setOnClickListener {
+            val typeface = ResourcesCompat.getFont(applicationContext, R.font.cookie_regular)
+            et_note!!.typeface = typeface
+            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(
+                0,
+                0,
+                R.drawable.ic_baseline_done_24,
+                0
+            )
+            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+        }
+        font_simonetta_italic.setOnClickListener {
+            val typeface = ResourcesCompat.getFont(applicationContext, R.font.simonetta_italic)
+            et_note!!.typeface = typeface
+            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(
+                0,
+                0,
+                R.drawable.ic_baseline_done_24,
+                0
+            )
+        }
+        fontFamilyDialog!!.setContentView(view)
     }
 
     @SuppressLint("MissingPermission")
-    void findBT() {
-
+    fun findBT() {
         try {
-            mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-
+            mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
             if (mBluetoothAdapter == null) {
-                Toast.makeText(getApplicationContext(), "No bluetooth adapter available", Toast.LENGTH_LONG).show();
+                Toast.makeText(
+                    applicationContext,
+                    "No bluetooth adapter available",
+                    Toast.LENGTH_LONG
+                ).show()
             }
-
             if (!mBluetoothAdapter.isEnabled()) {
-                Intent enableBluetooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                startActivityForResult(enableBluetooth, 0);
-
+                val enableBluetooth = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                startActivityForResult(enableBluetooth, 0)
             }
-
-            Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
-
-            BTDeviceList.clear();
-            if (pairedDevices.size() > 0) {
-                for (BluetoothDevice device : pairedDevices) {
-                    BTDeviceList.add(device.getName());
+            val pairedDevices = mBluetoothAdapter.getBondedDevices()
+            BTDeviceList!!.clear()
+            if (pairedDevices.size > 0) {
+                for (device in pairedDevices) {
+                    BTDeviceList!!.add(device.name)
                 }
             }
-
-            openBTDeviceDialog();
-
-        }catch(Exception e){
-            e.printStackTrace();
-            Toast.makeText(getApplicationContext(), "Error Occur During Find BT Device\n"+e.toString(), Toast.LENGTH_SHORT).show();
+            if(mBluetoothAdapter.isEnabled)
+                openBTDeviceDialog()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(
+                applicationContext,
+                "Error Occur During Find BT Device\n$e",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
-    private void openBTDeviceDialog() {
-        final AlertDialog.Builder alert=new AlertDialog.Builder(NewNoteActivity.this);
-        View view=getLayoutInflater().inflate(R.layout.custom_bt_devices_layout, null);
+    @SuppressLint("MissingPermission")
+    private fun openBTDeviceDialog() {
 
-        final TextView tv_mybtName=view.findViewById(R.id.tv_mybtName);
-        final Switch switch_btOn=view.findViewById(R.id.switch_btOn);
-        final ListView list_device=view.findViewById(R.id.list_device);
-        final ImageView closeBtDialog=view.findViewById(R.id.closeBtDialog);
-
-        alert.setView(view);
-        final AlertDialog alertDialog=alert.create();
-        alertDialog.setCanceledOnTouchOutside(false);
-
-        tv_mybtName.setText(mBluetoothAdapter.getName());
-        switch_btOn.setChecked(true);
-
-        switch_btOn.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked) {
-                    findBT();
-                } else {
-                    mBluetoothAdapter.disable();
-                    tv_mybtName.setText("BT OFF");
-                    BTDeviceList.clear();
-                    list_device.setVisibility(View.GONE);
-                }
+        val alert = AlertDialog.Builder(this@NewNoteActivity)
+        val view = layoutInflater.inflate(R.layout.custom_bt_devices_layout, null)
+        val tv_mybtName = view.findViewById<TextView>(R.id.tv_mybtName)
+        val switch_btOn = view.findViewById<Switch>(R.id.switch_btOn)
+        val list_device = view.findViewById<ListView>(R.id.list_device)
+        val closeBtDialog = view.findViewById<ImageView>(R.id.closeBtDialog)
+        alert.setView(view)
+        val alertDialog = alert.create()
+        alertDialog.setCanceledOnTouchOutside(false)
+        tv_mybtName.text = mBluetoothAdapter!!.name
+        switch_btOn.isChecked = true
+        switch_btOn.setOnCheckedChangeListener { buttonView, isChecked ->
+            if (isChecked) {
+                findBT()
+            } else {
+                mBluetoothAdapter!!.disable()
+                tv_mybtName.text = "BT OFF"
+                BTDeviceList!!.clear()
+                list_device.visibility = View.GONE
+                alertDialog.dismiss()
             }
-        });
+        }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, android.R.id.text1, BTDeviceList)
+        list_device.adapter = adapter
 
-        final ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
-                android.R.layout.simple_list_item_1, android.R.id.text1, BTDeviceList);
-        list_device.setAdapter(adapter);
+        closeBtDialog.setOnClickListener { alertDialog.dismiss() }
 
-        closeBtDialog.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                alertDialog.dismiss();
-            }
-        });
-
-        list_device.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
-
-                Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
-
-                if (pairedDevices.size() > 0) {
-                    for (BluetoothDevice device : pairedDevices) {
-
-                        if(adapter.getItem(position).trim().equals(device.getName())) {
-                            try {
-                                mmDevice = device;
-                                openBT();
-                                alertDialog.dismiss();
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                                Toast.makeText(NewNoteActivity.this, e.toString(), Toast.LENGTH_SHORT).show();
-                            }
+        list_device.onItemClickListener = OnItemClickListener { adapterView, view, position, l ->
+            val pairedDevices = mBluetoothAdapter!!.bondedDevices
+            if (pairedDevices.size > 0) {
+                for (device in pairedDevices) {
+                    if (adapter.getItem(position)!!.trim { it <= ' ' } == device.name) {
+                        try {
+                            mmDevice = device
+                            openBT()
+                            alertDialog.dismiss()
+                        } catch (e: IOException) {
+                            e.printStackTrace()
+                            Toast.makeText(this@NewNoteActivity, e.toString(), Toast.LENGTH_SHORT)
+                                .show()
                         }
                     }
                 }
             }
-        });
-
-        alertDialog.show();
+        }
+        alertDialog.show()
     }
 
     @SuppressLint("MissingPermission")
-    void openBT() throws IOException {
+    @Throws(IOException::class)
+    fun openBT() {
         try {
 
             // Standard SerialPortService ID
             //UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
-            UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-            mmSocket = mmDevice.createRfcommSocketToServiceRecord(uuid);
-            mmSocket.connect();
-            mmOutputStream = mmSocket.getOutputStream();
-            mmInputStream = mmSocket.getInputStream();
-
-            beginListenForData();
-
-            Toast.makeText(getApplicationContext(), "Bluetooth Opened", Toast.LENGTH_LONG).show();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(getApplicationContext(), "Error Occur During Open BT Device\n"+e.toString(), Toast.LENGTH_SHORT).show();
+            val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+            mmSocket = mmDevice!!.createRfcommSocketToServiceRecord(uuid)
+            mmSocket.connect()
+            mmOutputStream = mmSocket.getOutputStream()
+            mmInputStream = mmSocket.getInputStream()
+            beginListenForData()
+            Toast.makeText(applicationContext, "Your Device connected", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(
+                applicationContext,
+                "Error Occur During Open BT Device\n$e",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
-    void beginListenForData() {
+    fun beginListenForData() {
         try {
-            final Handler handler = new Handler();
+            val handler = Handler()
 
             // this is the ASCII code for a newline character
-            final byte delimiter = 10;
+            val delimiter: Byte = 10
+            stopWorker = false
+            readBufferPosition = 0
+            readBuffer = ByteArray(1024)
+            workerThread = Thread {
+                while (!Thread.currentThread().isInterrupted && !stopWorker) {
+                    try {
+                        val bytesAvailable = mmInputStream!!.available()
+                        if (bytesAvailable > 0) {
+                            val packetBytes = ByteArray(bytesAvailable)
+                            Toast.makeText(
+                                applicationContext,
+                                packetBytes.toString() + "",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            mmInputStream!!.read(packetBytes)
+                            for (i in 0 until bytesAvailable) {
+                                val b = packetBytes[i]
+                                if (b == delimiter) {
+                                    val encodedBytes = ByteArray(readBufferPosition)
+                                    System.arraycopy(
+                                        readBuffer, 0,
+                                        encodedBytes, 0,
+                                        encodedBytes.size
+                                    )
 
-            stopWorker = false;
-            readBufferPosition = 0;
-            readBuffer = new byte[1024];
+                                    // specify US-ASCII encoding
+                                    val data = String(encodedBytes, Charsets.US_ASCII)
 
-            workerThread = new Thread(new Runnable() {
-                public void run() {
+                                    readBufferPosition = 0
 
-                    while (!Thread.currentThread().isInterrupted() && !stopWorker) {
-
-                        try {
-
-                            int bytesAvailable = mmInputStream.available();
-
-                            if (bytesAvailable > 0) {
-
-                                byte[] packetBytes = new byte[bytesAvailable];
-                                Toast.makeText(getApplicationContext(), packetBytes+"", Toast.LENGTH_SHORT).show();
-                                mmInputStream.read(packetBytes);
-
-                                for (int i = 0; i < bytesAvailable; i++) {
-
-                                    byte b = packetBytes[i];
-                                    if (b == delimiter) {
-
-                                        byte[] encodedBytes = new byte[readBufferPosition];
-                                        System.arraycopy(
-                                                readBuffer, 0,
-                                                encodedBytes, 0,
-                                                encodedBytes.length
-                                        );
-
-                                        // specify US-ASCII encoding
-                                        final String data = new String(encodedBytes, "US-ASCII");
-                                        readBufferPosition = 0;
-
-                                        // tell the user data were sent to bluetooth printer device
-                                        handler.post(new Runnable() {
-                                            public void run() {
-                                                Toast.makeText(getApplicationContext(), data, Toast.LENGTH_LONG).show();
-                                            }
-                                        });
-
-                                    } else {
-                                        readBuffer[readBufferPosition++] = b;
+                                    // tell the user data were sent to bluetooth printer device
+                                    handler.post {
+                                        Toast.makeText(
+                                            applicationContext,
+                                            data.toString(),
+                                            Toast.LENGTH_LONG
+                                        ).show()
                                     }
+                                } else {
+                                    readBuffer[readBufferPosition++] = b
                                 }
                             }
-
-                        } catch (IOException ex) {
-                            stopWorker = true;
                         }
-
+                    } catch (ex: IOException) {
+                        stopWorker = true
                     }
                 }
-            });
-
-            workerThread.start();
-
-        } catch (Exception e) {
-            e.printStackTrace();
+            }
+            workerThread!!.start()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
-    void sendData() throws IOException {
+    @Throws(IOException::class)
+    fun sendData() {
         try {
-            String msg = et_note.getText().toString();
-            msg += "\n";
-
-            mmOutputStream.write(msg.getBytes());
-
-            Toast.makeText(getApplicationContext(), "Data Sent to Printer", Toast.LENGTH_SHORT).show();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(getApplicationContext(), "Error Occur During Sending Data Method Calling\n"+e.toString(), Toast.LENGTH_SHORT).show();
+            var msg = toolbarTitle+"\t\t"+currentDateAndTime+"\n"+et_note!!.text.toString()
+            msg += "\n"
+            mmOutputStream!!.write(msg.toByteArray())
+            Toast.makeText(applicationContext, "Data Sent to Printer", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(
+                applicationContext,
+                "Error Occur During Sending Data Method Calling\n$e",
+                Toast.LENGTH_SHORT
+            ).show()
         }
-    }
-
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        //if(mBluetoothAdapter.isEnabled())
-            //mBluetoothAdapter.disable();
     }
 }

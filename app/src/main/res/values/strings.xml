@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">ThermalPrinter</string>
+    <string name="update_text">Update</string>
 </resources>

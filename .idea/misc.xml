@@ -4,10 +4,18 @@
     <option name="filePathToZoomLevelMap">
       <map>
         <entry key="..\:/BackUp SOMS/ThermalPrinter/app/src/main/res/layout/activity_new_note.xml" value="0.20102564102564102" />
+        <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/drawable/ic_baseline_delete_24.xml" value="0.1355" />
+        <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/activity_main.xml" value="0.20102564102564102" />
+        <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/activity_new_note.xml" value="0.20102564102564102" />
+        <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/delete_dialog.xml" value="0.20416666666666666" />
+        <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/edit_toolbar_dialog.xml" value="0.20416666666666666" />
+        <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/note_layout.xml" value="0.20416666666666666" />
+        <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/menu/new_note_toolbar_menu.xml" value="0.20102564102564102" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/bottom_navigation_selector.xml" value="0.2203125" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/custom_circle_add_notes_btn.xml" value="0.14" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/custom_circle_img.xml" value="0.16296296296296298" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_add_24.xml" value="0.16296296296296298" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_add_circle_24.xml" value="0.1355" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_done_24.xml" value="0.2203125" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_info_24.xml" value="0.16296296296296298" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/drawable/ic_baseline_local_printshop_24.xml" value="0.16296296296296298" />
@@ -27,6 +35,7 @@
         <entry key="..\:/ThermalPrinter/app/src/main/res/layout/custom_font_format_layout.xml" value="0.16" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/layout/custom_font_layout.xml" value="0.16" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/layout/custom_font_size_dialog_layout.xml" value="0.12037037037037036" />
+        <entry key="..\:/ThermalPrinter/app/src/main/res/menu/bottom_main_menu.xml" value="0.20416666666666666" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/menu/bottom_navi_menu.xml" value="0.20416666666666666" />
         <entry key="..\:/ThermalPrinter/app/src/main/res/menu/new_note_toolbar_menu.xml" value="0.12037037037037036" />
       </map>
