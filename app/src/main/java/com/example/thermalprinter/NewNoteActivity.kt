@@ -1,13 +1,14 @@
 package com.example.thermalprinter
 
 import android.annotation.SuppressLint
-import android.bluetooth.*
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothSocket
 import android.content.ClipboardManager
 import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Paint
 import android.graphics.Typeface
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.text.SpannableString
@@ -32,6 +33,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+
 
 class NewNoteActivity : AppCompatActivity() {
 
@@ -97,7 +99,6 @@ class NewNoteActivity : AppCompatActivity() {
             noteID = intent.getIntExtra("noteId", -1)
             supportActionBar!!.setTitle(noteTitle)
             et_note.setText(noteDescription)
-
             toolbarTitle=noteTitle
         } else
             toolbarTitle="New Note 001"
@@ -294,13 +295,6 @@ class NewNoteActivity : AppCompatActivity() {
         val buffer = StringBuffer()
         //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
         for (model in list!!) {
-            buffer.append(model.start)
-            buffer.append(
-                """
-                    ${model.end}
-                    
-                    """.trimIndent()
-            )
             val boldSpan = StyleSpan(Typeface.BOLD)
             spannableString.setSpan(
                 boldSpan,
@@ -627,7 +621,7 @@ class NewNoteActivity : AppCompatActivity() {
             e.printStackTrace()
             Toast.makeText(
                 applicationContext,
-                "Error Occur During Open BT Device\n$e",
+                "This Device already connected\n Error: \n$e",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -696,7 +690,7 @@ class NewNoteActivity : AppCompatActivity() {
     @Throws(IOException::class)
     fun sendData() {
         try {
-            var msg = toolbarTitle+"\t\t"+currentDateAndTime+"\n"+et_note!!.text.toString()
+            var msg = toolbarTitle+"   "+currentDateAndTime+"\n"+et_note!!.text.toString()
             msg += "\n"
             mmOutputStream!!.write(msg.toByteArray())
             Toast.makeText(applicationContext, "Data Sent to Printer", Toast.LENGTH_SHORT).show()

@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
         viewModal.allNotes.observe(this, Observer { list ->
             list?.let {
                 if(it.isEmpty()){
-                    tv_welcmNote.visibility = View.VISIBLE
+                    linearLayout.visibility = View.GONE
                     tv_welcmNote.setText(
                         "Bluetooth Notes Printer helps to take prints via thermal, lets get started with your first note " +
                                 "by clicking on 'New Note' button bottom right corner"
