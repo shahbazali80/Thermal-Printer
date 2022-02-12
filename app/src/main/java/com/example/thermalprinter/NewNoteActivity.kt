@@ -13,7 +13,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.text.SpannableString
 import android.text.Spanned
+import android.text.style.StrikethroughSpan
 import android.text.style.StyleSpan
+import android.text.style.UnderlineSpan
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
@@ -41,7 +43,6 @@ class NewNoteActivity : AppCompatActivity() {
     var formatDialog: BottomSheetDialog? = null
     var fontFamilyDialog: BottomSheetDialog? = null
     var seekbarValue = 0
-    var selectedTxt: String? = null
     lateinit var mBluetoothAdapter: BluetoothAdapter
     lateinit var mmSocket: BluetoothSocket
     lateinit var mmDevice: BluetoothDevice
@@ -144,20 +145,6 @@ class NewNoteActivity : AppCompatActivity() {
                         R.id.size -> sizeDialog!!.show()
                         R.id.format -> formatDialog!!.show()
                         R.id.doneNote -> {
-                            /*SpannableString spannableString = new SpannableString(et_note.getText().toString());
-                            StringBuffer buffer = new StringBuffer();
-                            //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
-                            for (FaceModel model : list) {
-                                buffer.append(model.getStart());
-                                buffer.append(model.getEnd() + "\n");
-
-                                StyleSpan boldSpan = new StyleSpan(BOLD);
-
-                                spannableString.setSpan(boldSpan, model.getStart(), model.getEnd(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                            }
-
-                            et_note.setText(spannableString);
-                            Toast.makeText(getApplicationContext(), buffer, Toast.LENGTH_SHORT).show();*/
                             addUpdateNote()
                         }
                     }
@@ -290,7 +277,7 @@ class NewNoteActivity : AppCompatActivity() {
         val start = et_note!!.selectionStart
         val end = et_note!!.selectionEnd
 
-        list!!.add(FaceModel(start, end, 1))
+        list!!.add(FaceModel(start, end, 1,0,0))
         val spannableString = SpannableString(et_note!!.text.toString())
         val buffer = StringBuffer()
         //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
@@ -304,23 +291,6 @@ class NewNoteActivity : AppCompatActivity() {
             )
         }
         et_note!!.setText(spannableString)
-
-        /*SpannableString spannableString=new SpannableString(et_note.getText().toString());
-
-        StyleSpan boldSpan=new StyleSpan(BOLD);
-
-        spannableString.setSpan(boldSpan,start,end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        et_note.setText(spannableString);*/
-
-        //et_note.setHighlightColor(ContextCompat.getColor(this, R.color.purple_200));
-        Toast.makeText(applicationContext, buffer, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun selectText() {
-        val clipboardManager = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-        val clipData = clipboardManager.primaryClip
-        val item = clipData!!.getItemAt(0)
-        selectedTxt = item.text.toString()
     }
 
     private fun openFontFormatDialog() {
@@ -331,51 +301,96 @@ class NewNoteActivity : AppCompatActivity() {
         val rb_underLine = view.findViewById<RadioButton>(R.id.rb_underLine)
         val rg_fontJustify = view.findViewById<RadioGroup>(R.id.rg_fontJustify)
         closeFormatDailog.setOnClickListener { formatDialog!!.cancel() }
+
         rb_bold.setOnClickListener {
-            if (isBold) {
-                isBold = false
-                //et_note.setTypeface(et_note.getTypeface(), Typeface.NORMAL);
-                //et_note.setPaintFlags(et_note.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
-                rb_bold.isChecked = false
-            } else {
-                isBold = true
-                if (isItalic) et_note!!.setTypeface(
-                    et_note!!.typeface,
-                    Typeface.ITALIC
-                ) else et_note!!.setTypeface(
-                    et_note!!.typeface, Typeface.BOLD
-                )
-                rb_bold.isChecked = true
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+            //start+end.getTypeface().getStyle()==Typeface.BOLD
+
+            list!!.add(FaceModel(start, end, 1,0,0))
+            val spannableString = SpannableString(et_note!!.text.toString())
+            for (model in list!!) {
+                if(model.faceItalic==1 && model.faceBold==1){
+                    val boldSpan = StyleSpan(Typeface.ITALIC)
+                    spannableString.setSpan(
+                        boldSpan,
+                        model.start,
+                        model.end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                } else if(model.faceItalic==1) {
+                    val boldSpan = StyleSpan(Typeface.BOLD_ITALIC)
+                    spannableString.setSpan(
+                        boldSpan,
+                        model.start,
+                        model.end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                } else {
+                    val boldSpan = StyleSpan(Typeface.BOLD)
+                    spannableString.setSpan(
+                        boldSpan,
+                        model.start,
+                        model.end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+
             }
+            et_note!!.setText(spannableString)
         }
+
         rb_italic.setOnClickListener {
-            if (isItalic) {
-                isItalic = false
-                //et_note.setTypeface(et_note.getTypeface(), Typeface.NORMAL);
-                //et_note.setPaintFlags(et_note.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
-                rb_italic.isChecked = false
-            } else {
-                isItalic = true
-                if (isBold) et_note!!.setTypeface(
-                    et_note!!.typeface,
-                    Typeface.ITALIC
-                ) else et_note!!.setTypeface(
-                    et_note!!.typeface, Typeface.ITALIC
-                )
-                rb_italic.isChecked = true
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+
+            list!!.add(FaceModel(start, end, 0,1,0))
+            val spannableString = SpannableString(et_note!!.text.toString())
+            val buffer = StringBuffer()
+            //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
+            for (model in list!!) {
+
+                if(model.faceBold==1){
+                    val boldSpan = StyleSpan(Typeface.BOLD_ITALIC)
+                    spannableString.setSpan(
+                        boldSpan,
+                        model.start,
+                        model.end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                } else {
+                    val boldSpan = StyleSpan(Typeface.ITALIC)
+                    spannableString.setSpan(
+                        boldSpan,
+                        model.start,
+                        model.end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
             }
+            et_note!!.setText(spannableString)
         }
+
         rb_underLine.setOnClickListener {
-            if (isUnderLine) {
-                isUnderLine = false
-                //et_note.setPaintFlags(et_note.getPaintFlags() | Paint.C);
-                rb_underLine.isChecked = false
-            } else {
-                isUnderLine = true
-                et_note!!.paintFlags = et_note!!.paintFlags or Paint.UNDERLINE_TEXT_FLAG
-                rb_underLine.isChecked = true
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+
+            val strikethroughSpan = StrikethroughSpan()
+
+            list!!.add(FaceModel(start, end, 0,0,1))
+            val spannableString = SpannableString(et_note!!.text.toString())
+            for (model in list!!) {
+                val underlineSpan = UnderlineSpan()
+                spannableString.setSpan(
+                    underlineSpan,
+                    model.start,
+                    model.end,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
             }
+            et_note!!.setText(spannableString)
         }
+
         rg_fontJustify.setOnCheckedChangeListener(RadioGroup.OnCheckedChangeListener { radioGroup, i ->
             when (i) {
                 R.id.rb_left -> {
@@ -539,7 +554,9 @@ class NewNoteActivity : AppCompatActivity() {
                 for (device in pairedDevices) {
                     BTDeviceList!!.add(device.name)
                 }
-            }
+            } else
+                Toast.makeText(this, "No Paired Device found. Go to Setting", Toast.LENGTH_LONG).show()
+
             if(mBluetoothAdapter.isEnabled)
                 openBTDeviceDialog()
         } catch (e: Exception) {
@@ -556,11 +573,13 @@ class NewNoteActivity : AppCompatActivity() {
     private fun openBTDeviceDialog() {
 
         val alert = AlertDialog.Builder(this@NewNoteActivity)
-        val view = layoutInflater.inflate(R.layout.custom_bt_devices_layout, null)
-        val tv_mybtName = view.findViewById<TextView>(R.id.tv_mybtName)
-        val switch_btOn = view.findViewById<Switch>(R.id.switch_btOn)
-        val list_device = view.findViewById<ListView>(R.id.list_device)
-        val closeBtDialog = view.findViewById<ImageView>(R.id.closeBtDialog)
+        //val view = layoutInflater.inflate(R.layout.custom_bt_devices_layout, null)
+        val view = layoutInflater.inflate(R.layout.bt_device_layout, null)
+        val tv_mybtName = view.findViewById<TextView>(R.id.tv_device_name)
+        val tv_openSetting = view.findViewById<TextView>(R.id.tv_openSetting)
+        val switch_btOn = view.findViewById<Switch>(R.id.switch_bt)
+        val list_device = view.findViewById<ListView>(R.id.lv_device)
+        val closeBtDialog = view.findViewById<ImageView>(R.id.img_close)
         alert.setView(view)
         val alertDialog = alert.create()
         alertDialog.setCanceledOnTouchOutside(false)
@@ -573,10 +592,15 @@ class NewNoteActivity : AppCompatActivity() {
                 mBluetoothAdapter!!.disable()
                 tv_mybtName.text = "BT OFF"
                 BTDeviceList!!.clear()
-                list_device.visibility = View.GONE
                 alertDialog.dismiss()
             }
         }
+
+        tv_openSetting.setOnClickListener {
+            alertDialog.dismiss()
+            startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS));
+        }
+
         val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, android.R.id.text1, BTDeviceList)
         list_device.adapter = adapter
 
@@ -600,6 +624,7 @@ class NewNoteActivity : AppCompatActivity() {
                 }
             }
         }
+
         alertDialog.show()
     }
 

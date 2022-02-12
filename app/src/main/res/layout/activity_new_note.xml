@@ -39,10 +39,9 @@
         android:layout_height="match_parent"
         android:layout_marginTop="60dp"
         android:background="@color/appcolor"
-        android:ems="10"
         android:gravity="top"
         android:hint="Write Here"
-        android:inputType="textPersonName"
+        android:inputType="text"
         android:padding="10dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"/>

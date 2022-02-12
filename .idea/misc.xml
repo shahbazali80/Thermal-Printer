@@ -20,6 +20,8 @@
         <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/drawable/ic_baseline_delete_24.xml" value="0.1355" />
         <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/activity_main.xml" value="0.20102564102564102" />
         <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/activity_new_note.xml" value="0.20102564102564102" />
+        <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/bt_device_layout.xml" value="0.19947916666666668" />
+        <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/custom_bt_devices_layout.xml" value="0.20102564102564102" />
         <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/delete_dialog.xml" value="0.20416666666666666" />
         <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/edit_toolbar_dialog.xml" value="0.20416666666666666" />
         <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/note_layout.xml" value="0.20416666666666666" />
