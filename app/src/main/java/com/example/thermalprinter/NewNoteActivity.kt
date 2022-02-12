@@ -1,9 +1,7 @@
 package com.example.thermalprinter
 
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothSocket
+import android.bluetooth.*
 import android.content.ClipboardManager
 import android.content.DialogInterface
 import android.content.Intent
@@ -35,7 +33,6 @@ import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
-
 class NewNoteActivity : AppCompatActivity() {
 
     var sizeDialog: BottomSheetDialog? = null
@@ -59,6 +56,7 @@ class NewNoteActivity : AppCompatActivity() {
     var isBold = false
     var isItalic = false
     var isUnderLine = false
+    var isFindPrinter = false
 
     var noteType : String ? = null
     var noteTitle : String ? = null
@@ -86,6 +84,8 @@ class NewNoteActivity : AppCompatActivity() {
         list = ArrayList()
         BTDeviceList = ArrayList()
 
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+
         var sdf = SimpleDateFormat("dd/MMM/yyyy")
         currentDateAndTime = sdf.format(Date())
 
@@ -102,20 +102,14 @@ class NewNoteActivity : AppCompatActivity() {
         } else
             toolbarTitle="New Note 001"
 
-        viewModal = ViewModelProvider(
-            this,
-            ViewModelProvider.AndroidViewModelFactory.getInstance(application)
-        ).get(NoteViewModel::class.java)
+        viewModal = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application)).get(NoteViewModel::class.java)
 
-        newNoteToolbar.setOnClickListener(View.OnClickListener {
-            openEditToolbarTile()
-        })
+        newNoteToolbar.setOnClickListener(View.OnClickListener { openEditToolbarTile() })
 
         bottomNavigationView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
         fontFamilyDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         sizeDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         formatDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-
         //getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
     }
 
@@ -172,22 +166,46 @@ class NewNoteActivity : AppCompatActivity() {
         }
 
     private fun addUpdateNote() {
-        val noteDescription = et_note.text.toString()
-        if (noteType.equals("Edit")) {
-            if (noteDescription.isNotEmpty()) {
-                val updatedNote = NoteModel(toolbarTitle.toString(), noteDescription, currentDateAndTime.toString())
-                updatedNote.id = noteID
-                viewModal.updateNote(updatedNote)
-                Toast.makeText(this@NewNoteActivity, "Successfully Updated Note", Toast.LENGTH_SHORT).show()
-                startActivity(Intent(this@NewNoteActivity,MainActivity::class.java))
-                finish()
-            }
-        } else {
-            if (noteDescription.isNotEmpty()) {
-                viewModal.addNote(NoteModel(toolbarTitle.toString(), noteDescription, currentDateAndTime.toString()))
-                Toast.makeText(this@NewNoteActivity, "Successfully Inserted Note", Toast.LENGTH_SHORT).show()
-                startActivity(Intent(this@NewNoteActivity,MainActivity::class.java))
-                finish()
+        if(et_note.text.toString().isEmpty() ||  et_note.text.toString().trim().isEmpty()){
+            et_note.setError("Write Something here")
+            et_note.requestFocus()
+            et_note.performClick()
+        }else {
+            val noteDescription = et_note.text.toString()
+            if (noteType.equals("Edit")) {
+                if (noteDescription.isNotEmpty()) {
+                    val updatedNote = NoteModel(
+                        toolbarTitle.toString(),
+                        noteDescription,
+                        currentDateAndTime.toString()
+                    )
+                    updatedNote.id = noteID
+                    viewModal.updateNote(updatedNote)
+                    Toast.makeText(
+                        this@NewNoteActivity,
+                        "Successfully Updated Note",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    startActivity(Intent(this@NewNoteActivity, MainActivity::class.java))
+                    finish()
+                }
+            } else {
+                if (noteDescription.isNotEmpty()) {
+                    viewModal.addNote(
+                        NoteModel(
+                            toolbarTitle.toString(),
+                            noteDescription,
+                            currentDateAndTime.toString()
+                        )
+                    )
+                    Toast.makeText(
+                        this@NewNoteActivity,
+                        "Successfully Inserted Note",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    startActivity(Intent(this@NewNoteActivity, MainActivity::class.java))
+                    finish()
+                }
             }
         }
     }
@@ -224,10 +242,12 @@ class NewNoteActivity : AppCompatActivity() {
                 true
             }
             R.id.menu_setting -> {
+                boldText()
                 Toast.makeText(applicationContext, "Setting", Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.menu_about -> {
+
                 true
             }
             else -> //boldText();
@@ -269,8 +289,6 @@ class NewNoteActivity : AppCompatActivity() {
         val start = et_note!!.selectionStart
         val end = et_note!!.selectionEnd
 
-        //StringBuffer buffer=new StringBuffer();
-        //buffer.append(start+" "+end+"\n");
         list!!.add(FaceModel(start, end, 1))
         val spannableString = SpannableString(et_note!!.text.toString())
         val buffer = StringBuffer()
@@ -510,7 +528,6 @@ class NewNoteActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     fun findBT() {
         try {
-            mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
             if (mBluetoothAdapter == null) {
                 Toast.makeText(
                     applicationContext,
@@ -687,7 +704,7 @@ class NewNoteActivity : AppCompatActivity() {
             e.printStackTrace()
             Toast.makeText(
                 applicationContext,
-                "Error Occur During Sending Data Method Calling\n$e",
+                "No Device connected and error is: $e",
                 Toast.LENGTH_SHORT
             ).show()
         }
