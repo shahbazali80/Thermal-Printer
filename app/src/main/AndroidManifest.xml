@@ -15,8 +15,9 @@
         android:theme="@style/Theme.ThermalPrinter">
         <activity
             android:name=".NewNoteActivity"
-            android:exported="false" android:parentActivityName=".MainActivity"
-            android:windowSoftInputMode="adjustPan|adjustResize"/>
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:windowSoftInputMode="adjustResize"/>
         <activity
             android:name=".SplashScreenActivity"
             android:exported="true">
