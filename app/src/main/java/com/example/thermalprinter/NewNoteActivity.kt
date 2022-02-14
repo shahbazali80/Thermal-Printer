@@ -4,17 +4,18 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
-import android.content.ClipboardManager
 import android.content.DialogInterface
 import android.content.Intent
-import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
+import android.text.Layout
+import android.text.Spannable
 import android.text.SpannableString
 import android.text.Spanned
-import android.text.style.StrikethroughSpan
+import android.text.style.AlignmentSpan
 import android.text.style.StyleSpan
+import android.text.style.TypefaceSpan
 import android.text.style.UnderlineSpan
 import android.view.*
 import android.widget.*
@@ -24,6 +25,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.ViewModelProvider
+import com.example.thermalprinter.models.CustomTypeFaceSpan
 import com.example.thermalprinter.models.FaceModel
 import com.example.thermalprinter.models.NoteModel
 import com.example.thermalprinter.viewmodel.NoteViewModel
@@ -59,7 +61,7 @@ class NewNoteActivity : AppCompatActivity() {
     var isBold = false
     var isItalic = false
     var isUnderLine = false
-    var isFindPrinter = false
+    var isPrinterConnect = false
 
     var noteType : String ? = null
     var noteTitle : String ? = null
@@ -67,9 +69,16 @@ class NewNoteActivity : AppCompatActivity() {
     var noteDate : String ? = null
     var toolbarTitle : String ? = null
     var currentDateAndTime: String ?  = null
+    var connectedPrinterName: String ?  = null
+
+    lateinit var spannableString : SpannableString
 
     lateinit var viewModal: NoteViewModel
     var noteID = -1;
+
+    var faceBold = 0;
+    var faceItalic = 0;
+    var faceUnderline = 0;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,6 +115,9 @@ class NewNoteActivity : AppCompatActivity() {
 
         viewModal = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application)).get(NoteViewModel::class.java)
 
+        if(!mBluetoothAdapter.isEnabled)
+            findBT()
+
         newNoteToolbar.setOnClickListener(View.OnClickListener { openEditToolbarTile() })
 
         bottomNavigationView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
@@ -125,6 +137,10 @@ class NewNoteActivity : AppCompatActivity() {
 
         dialogBuilder.setTitle("Update Title")
         //dialogBuilder.setMessage("Enter data below")
+
+        if(noteType.equals("Edit"))
+            et_toolbar.setText(noteTitle)
+
         dialogBuilder.setPositiveButton("Update", DialogInterface.OnClickListener { _, _ ->
             toolbarTitle = et_toolbar.text.toString()
             supportActionBar!!.setTitle(toolbarTitle)
@@ -212,17 +228,22 @@ class NewNoteActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_printerOut -> {
-                try {
-                    sendData()
-                    //boldText();
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                    Toast.makeText(applicationContext, "Error Occur During Sending Data\n$e", Toast.LENGTH_SHORT).show()
-                }
+                if(isPrinterConnect==true) {
+                    try {
+                        sendData()
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                        Toast.makeText(applicationContext, "Error Occur During Sending Data\n$e", Toast.LENGTH_SHORT).show()
+                    }
+                } else
+                    Toast.makeText(this, "No Printer Device Connected", Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.menu_findPrinter -> {
-                findBT()
+                if(isPrinterConnect==false)
+                    findBT()
+                else
+                    Toast.makeText(this, "${connectedPrinterName} Already Connected", Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.menu_delete -> {
@@ -230,8 +251,14 @@ class NewNoteActivity : AppCompatActivity() {
                 true
             }
             R.id.menu_setting -> {
-                boldText()
-                Toast.makeText(applicationContext, "Setting", Toast.LENGTH_SHORT).show()
+                val buffer = StringBuffer()
+                for (model in list!!){
+                    buffer.append(model.start)
+                    buffer.append(model.end)
+                    buffer.append(model.faceBold)
+                    buffer.append("${model.faceItalic}\n")
+                }
+                Toast.makeText(this, buffer, Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.menu_about -> {
@@ -307,8 +334,13 @@ class NewNoteActivity : AppCompatActivity() {
             val end = et_note!!.selectionEnd
             //start+end.getTypeface().getStyle()==Typeface.BOLD
 
-            list!!.add(FaceModel(start, end, 1,0,0))
-            val spannableString = SpannableString(et_note!!.text.toString())
+            if(faceBold==0)
+                faceBold=1
+            else
+                faceBold=0
+
+            list!!.add(FaceModel(start, end, faceBold,0,0))
+            spannableString = SpannableString(et_note!!.text.toString())
             for (model in list!!) {
                 if(model.faceItalic==1 && model.faceBold==1){
                     val boldSpan = StyleSpan(Typeface.ITALIC)
@@ -345,9 +377,7 @@ class NewNoteActivity : AppCompatActivity() {
             val end = et_note!!.selectionEnd
 
             list!!.add(FaceModel(start, end, 0,1,0))
-            val spannableString = SpannableString(et_note!!.text.toString())
-            val buffer = StringBuffer()
-            //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
+            spannableString = SpannableString(et_note!!.text.toString())
             for (model in list!!) {
 
                 if(model.faceBold==1){
@@ -375,10 +405,8 @@ class NewNoteActivity : AppCompatActivity() {
             val start = et_note!!.selectionStart
             val end = et_note!!.selectionEnd
 
-            val strikethroughSpan = StrikethroughSpan()
-
             list!!.add(FaceModel(start, end, 0,0,1))
-            val spannableString = SpannableString(et_note!!.text.toString())
+            spannableString = SpannableString(et_note!!.text.toString())
             for (model in list!!) {
                 val underlineSpan = UnderlineSpan()
                 spannableString.setSpan(
@@ -389,12 +417,23 @@ class NewNoteActivity : AppCompatActivity() {
                 )
             }
             et_note!!.setText(spannableString)
+
         }
 
         rg_fontJustify.setOnCheckedChangeListener(RadioGroup.OnCheckedChangeListener { radioGroup, i ->
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+
             when (i) {
                 R.id.rb_left -> {
-                    et_note!!.gravity = Gravity.LEFT
+                    spannableString.setSpan(
+                        AlignmentSpan.Standard(Layout.Alignment.ALIGN_NORMAL),
+                        start,
+                        end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    et_note!!.setText(spannableString)
+                    //et_note!!.gravity = Gravity.LEFT
                     return@OnCheckedChangeListener
                 }
                 R.id.rb_center -> {
@@ -433,23 +472,32 @@ class NewNoteActivity : AppCompatActivity() {
     private fun openFontDialog() {
         val view = layoutInflater.inflate(R.layout.custom_font_layout, null, false)
         val font_abril_fatface = view.findViewById<TextView>(R.id.font_abril_fatface)
-        val font_alegreya_sans_regular =
-            view.findViewById<TextView>(R.id.font_alegreya_sans_regular)
+        val font_alegreya_sans_regular = view.findViewById<TextView>(R.id.font_alegreya_sans_regular)
         val font_abeezee_italic = view.findViewById<TextView>(R.id.font_abeezee_italic)
         val font_calligraffitti = view.findViewById<TextView>(R.id.font_calligraffitti)
         val font_cookie_regular = view.findViewById<TextView>(R.id.font_cookie_regular)
         val font_simonetta_italic = view.findViewById<TextView>(R.id.font_simonetta_italic)
         val closeDialog = view.findViewById<ImageView>(R.id.fontClose)
+
         closeDialog.setOnClickListener { fontFamilyDialog!!.cancel() }
+
         font_abril_fatface.setOnClickListener {
+
             val typeface = ResourcesCompat.getFont(applicationContext, R.font.abril_fatface)
-            et_note!!.typeface = typeface
-            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(
-                0,
-                0,
-                R.drawable.ic_baseline_done_24,
-                0
-            )
+            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
+
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+            list!!.add(FaceModel(start, end, 0,0,0))
+            spannableString = SpannableString(et_note!!.text.toString())
+
+            for (model in list!!) {
+                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+            }
+            et_note!!.setText(spannableString)
+
+            //et_note!!.typeface = typeface
+            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0)
             font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
@@ -472,38 +520,64 @@ class NewNoteActivity : AppCompatActivity() {
             font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
         }
         font_abeezee_italic.setOnClickListener {
+
             val typeface = ResourcesCompat.getFont(applicationContext, R.font.abeezee_italic)
-            et_note!!.typeface = typeface
+            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
+
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+            list!!.add(FaceModel(start, end, 0,0,0))
+            spannableString = SpannableString(et_note!!.text.toString())
+
+            for (model in list!!) {
+                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+            }
+            et_note!!.setText(spannableString)
+
             font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(
-                0,
-                0,
-                R.drawable.ic_baseline_done_24,
-                0
-            )
+            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0)
             font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
         }
         font_calligraffitti.setOnClickListener {
+
             val typeface = ResourcesCompat.getFont(applicationContext, R.font.calligraffitti)
-            et_note!!.typeface = typeface
+            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
+
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+            list!!.add(FaceModel(start, end, 0,0,0))
+            spannableString = SpannableString(et_note!!.text.toString())
+
+            for (model in list!!) {
+                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+            }
+            et_note!!.setText(spannableString)
+
             font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(
-                0,
-                0,
-                R.drawable.ic_baseline_done_24,
-                0
-            )
+            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0)
             font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
         }
         font_cookie_regular.setOnClickListener {
+
             val typeface = ResourcesCompat.getFont(applicationContext, R.font.cookie_regular)
-            et_note!!.typeface = typeface
+            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
+
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+            list!!.add(FaceModel(start, end, 0,0,0))
+            spannableString = SpannableString(et_note!!.text.toString())
+
+            for (model in list!!) {
+                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+            }
+            et_note!!.setText(spannableString)
+
             font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
@@ -517,8 +591,19 @@ class NewNoteActivity : AppCompatActivity() {
             font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
         }
         font_simonetta_italic.setOnClickListener {
+
             val typeface = ResourcesCompat.getFont(applicationContext, R.font.simonetta_italic)
-            et_note!!.typeface = typeface
+            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
+
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+            list!!.add(FaceModel(start, end, 0,0,0))
+            spannableString = SpannableString(et_note!!.text.toString())
+
+            for (model in list!!) {
+                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+            }
+            et_note!!.setText(spannableString)
             font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
@@ -548,14 +633,14 @@ class NewNoteActivity : AppCompatActivity() {
                 val enableBluetooth = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                 startActivityForResult(enableBluetooth, 0)
             }
+
             val pairedDevices = mBluetoothAdapter.getBondedDevices()
             BTDeviceList!!.clear()
             if (pairedDevices.size > 0) {
                 for (device in pairedDevices) {
                     BTDeviceList!!.add(device.name)
                 }
-            } else
-                Toast.makeText(this, "No Paired Device found. Go to Setting", Toast.LENGTH_LONG).show()
+            }
 
             if(mBluetoothAdapter.isEnabled)
                 openBTDeviceDialog()
@@ -573,10 +658,10 @@ class NewNoteActivity : AppCompatActivity() {
     private fun openBTDeviceDialog() {
 
         val alert = AlertDialog.Builder(this@NewNoteActivity)
-        //val view = layoutInflater.inflate(R.layout.custom_bt_devices_layout, null)
         val view = layoutInflater.inflate(R.layout.bt_device_layout, null)
         val tv_mybtName = view.findViewById<TextView>(R.id.tv_device_name)
         val tv_openSetting = view.findViewById<TextView>(R.id.tv_openSetting)
+        val otherBTDeviceTitle = view.findViewById<TextView>(R.id.otherBTDeviceTitle)
         val switch_btOn = view.findViewById<Switch>(R.id.switch_bt)
         val list_device = view.findViewById<ListView>(R.id.lv_device)
         val closeBtDialog = view.findViewById<ImageView>(R.id.img_close)
@@ -587,7 +672,10 @@ class NewNoteActivity : AppCompatActivity() {
         switch_btOn.isChecked = true
         switch_btOn.setOnCheckedChangeListener { buttonView, isChecked ->
             if (isChecked) {
-                findBT()
+                if(isPrinterConnect==false)
+                    findBT()
+                else
+                    Toast.makeText(this, "${connectedPrinterName} Already Connected", Toast.LENGTH_SHORT).show()
             } else {
                 mBluetoothAdapter!!.disable()
                 tv_mybtName.text = "BT OFF"
@@ -604,6 +692,12 @@ class NewNoteActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, android.R.id.text1, BTDeviceList)
         list_device.adapter = adapter
 
+        if(adapter.isEmpty){
+            otherBTDeviceTitle.setText("No Paired Device Found")
+            otherBTDeviceTitle.gravity = Gravity.CENTER_HORIZONTAL
+            Toast.makeText(this, "Go to Setting for Bluetooth Device", Toast.LENGTH_LONG).show()
+        }
+
         closeBtDialog.setOnClickListener { alertDialog.dismiss() }
 
         list_device.onItemClickListener = OnItemClickListener { adapterView, view, position, l ->
@@ -613,6 +707,7 @@ class NewNoteActivity : AppCompatActivity() {
                     if (adapter.getItem(position)!!.trim { it <= ' ' } == device.name) {
                         try {
                             mmDevice = device
+                            connectedPrinterName = device.name
                             openBT()
                             alertDialog.dismiss()
                         } catch (e: IOException) {
@@ -632,21 +727,21 @@ class NewNoteActivity : AppCompatActivity() {
     @Throws(IOException::class)
     fun openBT() {
         try {
-
             // Standard SerialPortService ID
-            //UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
             val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
             mmSocket = mmDevice!!.createRfcommSocketToServiceRecord(uuid)
             mmSocket.connect()
             mmOutputStream = mmSocket.getOutputStream()
             mmInputStream = mmSocket.getInputStream()
             beginListenForData()
-            Toast.makeText(applicationContext, "Your Device connected", Toast.LENGTH_LONG).show()
+            Toast.makeText(applicationContext, "$connectedPrinterName Device connected", Toast.LENGTH_LONG).show()
+            isPrinterConnect=true
+
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(
                 applicationContext,
-                "This Device already connected\n Error: \n$e",
+                "Please again try to connect BT Device\n$e",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -715,15 +810,37 @@ class NewNoteActivity : AppCompatActivity() {
     @Throws(IOException::class)
     fun sendData() {
         try {
-            var msg = toolbarTitle+"   "+currentDateAndTime+"\n"+et_note!!.text.toString()
-            msg += "\n"
-            mmOutputStream!!.write(msg.toByteArray())
-            Toast.makeText(applicationContext, "Data Sent to Printer", Toast.LENGTH_SHORT).show()
+
+            var titleMsg = "\n$toolbarTitle   $currentDateAndTime\n"
+
+            val format = byteArrayOf(27, 33, 0)                     //third parameter of format increase the size of text
+            val center = byteArrayOf(0x1b, 'a'.toByte(), 0x01)      // center alignment
+            val left = byteArrayOf(0x1b, 'a'.toByte(), 0x00)        // left alignment
+            val right = byteArrayOf(0x1b, 'a'.toByte(), 0x02)       // right alignment
+            format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
+            format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
+
+
+            for(item in list!!) {
+
+                val format = byteArrayOf(27, 33, 0)
+                if(item.faceBold==1){
+                    mmOutputStream!!.write(format)
+                    mmOutputStream!!.write(spannableString.subSequence(item.start, item.end).toString().toByteArray())
+                }
+            }
+
+            titleMsg+=et_note.text.toString()
+            titleMsg+="\n"
+            //mmOutputStream!!.write(center)
+            //mmOutputStream!!.write(format)
+            mmOutputStream!!.write(titleMsg.toByteArray())
+
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(
                 applicationContext,
-                "No Device connected and error is: $e",
+                "Error: $e",
                 Toast.LENGTH_SHORT
             ).show()
         }
