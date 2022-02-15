@@ -17,6 +17,7 @@ import android.text.style.AlignmentSpan
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.style.UnderlineSpan
+import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
@@ -37,6 +38,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.collections.ArrayList
 
 
 class NewNoteActivity : AppCompatActivity() {
@@ -96,6 +98,8 @@ class NewNoteActivity : AppCompatActivity() {
         list = ArrayList()
         BTDeviceList = ArrayList()
 
+        list!!.clear()
+
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
         var sdf = SimpleDateFormat("dd/MMM/yyyy")
@@ -110,6 +114,11 @@ class NewNoteActivity : AppCompatActivity() {
             supportActionBar!!.setTitle(noteTitle)
             et_note.setText(noteDescription)
             toolbarTitle=noteTitle
+
+            val item: MenuItem = bottomNavigationView.menu.findItem(R.id.doneNote)
+            item.title = getString(R.string.update_text)
+            //item.icon = ContextCompat.getDrawable(activity, R.drawable.ic_barcode)
+
         } else
             toolbarTitle="New Note 001"
 
@@ -251,12 +260,13 @@ class NewNoteActivity : AppCompatActivity() {
                 true
             }
             R.id.menu_setting -> {
+                var str = et_note.text.toString()
+                var delimiter = " "
+
+                val parts = str.split(delimiter) as ArrayList
                 val buffer = StringBuffer()
-                for (model in list!!){
-                    buffer.append(model.start)
-                    buffer.append(model.end)
-                    buffer.append(model.faceBold)
-                    buffer.append("${model.faceItalic}\n")
+                for(n in parts){
+                    buffer.append(n+"\n")
                 }
                 Toast.makeText(this, buffer, Toast.LENGTH_SHORT).show()
                 true
@@ -339,6 +349,7 @@ class NewNoteActivity : AppCompatActivity() {
             else
                 faceBold=0
 
+            list!!.clear()
             list!!.add(FaceModel(start, end, faceBold,0,0))
             spannableString = SpannableString(et_note!!.text.toString())
             for (model in list!!) {
@@ -405,6 +416,7 @@ class NewNoteActivity : AppCompatActivity() {
             val start = et_note!!.selectionStart
             val end = et_note!!.selectionEnd
 
+            list!!.clear()
             list!!.add(FaceModel(start, end, 0,0,1))
             spannableString = SpannableString(et_note!!.text.toString())
             for (model in list!!) {
@@ -426,13 +438,6 @@ class NewNoteActivity : AppCompatActivity() {
 
             when (i) {
                 R.id.rb_left -> {
-                    spannableString.setSpan(
-                        AlignmentSpan.Standard(Layout.Alignment.ALIGN_NORMAL),
-                        start,
-                        end,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                    et_note!!.setText(spannableString)
                     //et_note!!.gravity = Gravity.LEFT
                     return@OnCheckedChangeListener
                 }
@@ -668,8 +673,10 @@ class NewNoteActivity : AppCompatActivity() {
         alert.setView(view)
         val alertDialog = alert.create()
         alertDialog.setCanceledOnTouchOutside(false)
+
         tv_mybtName.text = mBluetoothAdapter!!.name
         switch_btOn.isChecked = true
+
         switch_btOn.setOnCheckedChangeListener { buttonView, isChecked ->
             if (isChecked) {
                 if(isPrinterConnect==false)
@@ -719,7 +726,6 @@ class NewNoteActivity : AppCompatActivity() {
                 }
             }
         }
-
         alertDialog.show()
     }
 
@@ -812,29 +818,81 @@ class NewNoteActivity : AppCompatActivity() {
         try {
 
             var titleMsg = "\n$toolbarTitle   $currentDateAndTime\n"
+            mmOutputStream!!.write(titleMsg.toByteArray())
 
             val format = byteArrayOf(27, 33, 0)                     //third parameter of format increase the size of text
-            val center = byteArrayOf(0x1b, 'a'.toByte(), 0x01)      // center alignment
-            val left = byteArrayOf(0x1b, 'a'.toByte(), 0x00)        // left alignment
-            val right = byteArrayOf(0x1b, 'a'.toByte(), 0x02)       // right alignment
-            format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
-            format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
+            //val center = byteArrayOf(0x1b, 'a'.toByte(), 0x01)      // center alignment
+            //val left = byteArrayOf(0x1b, 'a'.toByte(), 0x00)        // left alignment
+            //val right = byteArrayOf(0x1b, 'a'.toByte(), 0x02)       // right alignment
+            //format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
+            //format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
 
+            /*var str = et_note.text.toString()
+            var delimiter = " "
+            val words = str.split(delimiter) as ArrayList
 
-            for(item in list!!) {
-
-                val format = byteArrayOf(27, 33, 0)
-                if(item.faceBold==1){
-                    mmOutputStream!!.write(format)
-                    mmOutputStream!!.write(spannableString.subSequence(item.start, item.end).toString().toByteArray())
+            for(word in words){
+                if(list!!.size>0) {
+                    for (item in list!!) {
+                        var itemWord = spannableString.subSequence(item.start, item.end).toString()
+                        if (word.equals(itemWord)) {
+                            if (item.faceBold == 1) {
+                                val msg = "$itemWord "
+                                format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
+                                mmOutputStream!!.write(format)
+                                mmOutputStream!!.write(msg.toByteArray())
+                                Toast.makeText(this, "Bold called", Toast.LENGTH_SHORT).show()
+                            } else if (item.faceUnderline == 1) {
+                                val msg = "$itemWord "
+                                format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
+                                mmOutputStream!!.write(format)
+                                mmOutputStream!!.write(msg.toByteArray())
+                                Toast.makeText(this, "underline called", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            val unselectTxt = "$word "
+                            mmOutputStream!!.write(unselectTxt.toByteArray())
+                            Toast.makeText(this, "unselected called", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    val unselectTxt = "$word "
+                    mmOutputStream!!.write(unselectTxt.toByteArray())
+                    Toast.makeText(this, "unselected called", Toast.LENGTH_SHORT).show()
                 }
+            }*/
+
+            if(list!!.size>0) {
+                for (item in list!!) {
+                    val format = byteArrayOf(27, 33, 0)
+                    if (item.faceBold == 1 && item.faceUnderline == 1) {
+                        var msg = spannableString.subSequence(item.start, item.end).toString()
+                        msg += "\n"
+                        format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
+                        format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
+                        mmOutputStream!!.write(format)
+                        mmOutputStream!!.write(msg.toByteArray())
+                    } else if (item.faceBold == 1) {
+                        var msg = spannableString.subSequence(item.start, item.end).toString()
+                        msg += "\n"
+                        format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
+                        mmOutputStream!!.write(format)
+                        mmOutputStream!!.write(msg.toByteArray())
+                    } else if (item.faceUnderline == 1) {
+                        var msg = spannableString.subSequence(item.start, item.end).toString()
+                        msg += "\n"
+                        format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
+                        mmOutputStream!!.write(format)
+                        mmOutputStream!!.write(msg.toByteArray())
+                    }
+                }
+            } else {
+                val unselecttxt=et_note.text.toString()
+                mmOutputStream!!.write(unselecttxt.toByteArray())
             }
 
-            titleMsg+=et_note.text.toString()
-            titleMsg+="\n"
-            //mmOutputStream!!.write(center)
-            //mmOutputStream!!.write(format)
-            mmOutputStream!!.write(titleMsg.toByteArray())
+            var newLine="\n"
+            mmOutputStream!!.write(newLine.toByteArray())
 
         } catch (e: Exception) {
             e.printStackTrace()
