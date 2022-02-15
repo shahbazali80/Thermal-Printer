@@ -30,7 +30,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:itemIconSize="@dimen/bottom_navigation_icon_size"
         app:labelVisibilityMode="labeled"
-        app:itemTextColor="#959494"
+        app:itemTextColor="#818080"
         app:menu="@menu/bottom_navi_menu"/>
 
     <EditText

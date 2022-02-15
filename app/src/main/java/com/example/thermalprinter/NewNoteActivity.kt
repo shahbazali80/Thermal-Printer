@@ -127,38 +127,10 @@ class NewNoteActivity : AppCompatActivity() {
         if(!mBluetoothAdapter.isEnabled)
             findBT()
 
-        newNoteToolbar.setOnClickListener(View.OnClickListener { openEditToolbarTile() })
-
         bottomNavigationView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
         fontFamilyDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         sizeDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         formatDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-        //getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
-    }
-
-    private fun openEditToolbarTile() {
-        val dialogBuilder = android.app.AlertDialog.Builder(this)
-        val inflater = this.layoutInflater
-        val dialogView = inflater.inflate(R.layout.edit_toolbar_dialog, null)
-        dialogBuilder.setView(dialogView)
-
-        val et_toolbar = dialogView.findViewById(R.id.et_toolbar_edit) as TextView
-
-        dialogBuilder.setTitle("Update Title")
-        //dialogBuilder.setMessage("Enter data below")
-
-        if(noteType.equals("Edit"))
-            et_toolbar.setText(noteTitle)
-
-        dialogBuilder.setPositiveButton("Update", DialogInterface.OnClickListener { _, _ ->
-            toolbarTitle = et_toolbar.text.toString()
-            supportActionBar!!.setTitle(toolbarTitle)
-        })
-        dialogBuilder.setNegativeButton("Cancel", DialogInterface.OnClickListener { dialog, which ->
-            //pass
-        })
-        val b = dialogBuilder.create()
-        b.show()
     }
 
     private val mOnNavigationItemSelectedListener: BottomNavigationView.OnNavigationItemSelectedListener =
@@ -260,26 +232,51 @@ class NewNoteActivity : AppCompatActivity() {
                 true
             }
             R.id.menu_setting -> {
-                var str = et_note.text.toString()
-                var delimiter = " "
-
-                val parts = str.split(delimiter) as ArrayList
-                val buffer = StringBuffer()
-                for(n in parts){
-                    buffer.append(n+"\n")
-                }
-                Toast.makeText(this, buffer, Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Setting is not available", Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.menu_about -> {
-
+                Toast.makeText(this, "About is not available", Toast.LENGTH_SHORT).show()
                 true
             }
-            else -> //boldText();
-            {
+            R.id.menu_editToolbar -> {
+                openEditToolbarTile()
+                true
+            }
+            else -> {
                 super.onOptionsItemSelected(item)
             }
         }
+    }
+
+    private fun openEditToolbarTile() {
+        val dialogBuilder = android.app.AlertDialog.Builder(this)
+        val inflater = this.layoutInflater
+        val dialogView = inflater.inflate(R.layout.edit_toolbar_dialog, null)
+        dialogBuilder.setView(dialogView)
+
+        val et_toolbar = dialogView.findViewById(R.id.et_toolbar_edit) as TextView
+
+        dialogBuilder.setTitle("Update Note Title")
+        //dialogBuilder.setMessage("Enter data below")
+
+        et_toolbar.setText(toolbarTitle)
+
+        dialogBuilder.setPositiveButton("Update", DialogInterface.OnClickListener { _, _ ->
+            if(et_toolbar.text.toString().isEmpty() ||  et_toolbar.text.toString().trim().isEmpty()){
+                et_toolbar.setError("Write Note Title")
+                et_toolbar.requestFocus()
+                et_toolbar.performClick()
+            }else {
+                toolbarTitle = et_toolbar.text.toString()
+                supportActionBar!!.setTitle(toolbarTitle)
+            }
+        })
+        dialogBuilder.setNegativeButton("Cancel", DialogInterface.OnClickListener { dialog, which ->
+            //pass
+        })
+        val b = dialogBuilder.create()
+        b.show()
     }
 
     private fun deleteNote() {
