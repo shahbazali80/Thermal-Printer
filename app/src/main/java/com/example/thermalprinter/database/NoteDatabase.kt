@@ -5,10 +5,12 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.thermalprinter.dao.NoteDao
+import com.example.thermalprinter.models.FaceModel
 import com.example.thermalprinter.models.NoteModel
 
 @Database(entities = [
-    NoteModel::class]
+    NoteModel::class,
+    FaceModel::class]
     , version = 1, exportSchema = false)
 abstract class NoteDatabase : RoomDatabase() {
 

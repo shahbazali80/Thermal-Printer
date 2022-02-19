@@ -2,6 +2,8 @@ package com.example.thermalprinter.dao
 
 import androidx.lifecycle.LiveData
 import androidx.room.*
+import com.example.thermalprinter.models.FaceModel
+import com.example.thermalprinter.models.FontModel
 import com.example.thermalprinter.models.NoteModel
 
 @Dao
@@ -17,4 +19,7 @@ interface NoteDao {
 
     @Query(" SELECT * FROM tbl_notes")
     fun allNotes(): LiveData<List<NoteModel>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertFont(faceModel: FaceModel?)
 }

@@ -9,15 +9,10 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
-import android.text.Layout
-import android.text.Spannable
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.AlignmentSpan
+import android.text.*
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.style.UnderlineSpan
-import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
@@ -28,17 +23,18 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.ViewModelProvider
 import com.example.thermalprinter.models.CustomTypeFaceSpan
 import com.example.thermalprinter.models.FaceModel
+import com.example.thermalprinter.models.FontModel
 import com.example.thermalprinter.models.NoteModel
 import com.example.thermalprinter.viewmodel.NoteViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.android.synthetic.main.activity_new_note.*
+import kotlinx.android.synthetic.main.custom_font_format_layout.*
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.ArrayList
 
 
 class NewNoteActivity : AppCompatActivity() {
@@ -60,10 +56,14 @@ class NewNoteActivity : AppCompatActivity() {
     var stopWorker = false
     lateinit var BTDeviceList: MutableList<String>
     var list: MutableList<FaceModel>? = null
+    var fontlist: MutableList<FontModel>? = null
+    var newLineList: MutableList<Int>? = null
     var isBold = false
     var isItalic = false
     var isUnderLine = false
     var isPrinterConnect = false
+    var isBtnAddUpdate = false
+    var isFocus = false
 
     var noteType : String ? = null
     var noteTitle : String ? = null
@@ -82,6 +82,10 @@ class NewNoteActivity : AppCompatActivity() {
     var faceItalic = 0;
     var faceUnderline = 0;
 
+    var handler: Handler = Handler()
+    var runnable: Runnable? = null
+    var delay = 1000
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_new_note)
@@ -96,7 +100,9 @@ class NewNoteActivity : AppCompatActivity() {
         openFontSizeDialog()
         openFontFormatDialog()
         list = ArrayList()
+        fontlist = ArrayList()
         BTDeviceList = ArrayList()
+        newLineList = ArrayList()
 
         list!!.clear()
 
@@ -131,6 +137,14 @@ class NewNoteActivity : AppCompatActivity() {
         fontFamilyDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         sizeDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         formatDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+
+        et_note.setOnKeyListener(View.OnKeyListener { v, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
+                (newLineList as ArrayList<Int>).add(et_note.selectionStart)
+                true
+            }
+            false
+        })
     }
 
     private val mOnNavigationItemSelectedListener: BottomNavigationView.OnNavigationItemSelectedListener =
@@ -142,6 +156,7 @@ class NewNoteActivity : AppCompatActivity() {
                         R.id.size -> sizeDialog!!.show()
                         R.id.format -> formatDialog!!.show()
                         R.id.doneNote -> {
+                            isBtnAddUpdate=true
                             addUpdateNote()
                         }
                     }
@@ -166,11 +181,12 @@ class NewNoteActivity : AppCompatActivity() {
                     )
                     updatedNote.id = noteID
                     viewModal.updateNote(updatedNote)
-                    Toast.makeText(
-                        this@NewNoteActivity,
-                        "Successfully Updated Note",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    if(isBtnAddUpdate)
+                        Toast.makeText(
+                            this@NewNoteActivity,
+                            "Successfully Updated Note",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     startActivity(Intent(this@NewNoteActivity, MainActivity::class.java))
                     finish()
                 }
@@ -183,11 +199,12 @@ class NewNoteActivity : AppCompatActivity() {
                             currentDateAndTime.toString()
                         )
                     )
-                    Toast.makeText(
-                        this@NewNoteActivity,
-                        "Successfully Inserted Note",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    if (isBtnAddUpdate)
+                        Toast.makeText(
+                            this@NewNoteActivity,
+                            "Successfully Inserted Note",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     startActivity(Intent(this@NewNoteActivity, MainActivity::class.java))
                     finish()
                 }
@@ -201,7 +218,6 @@ class NewNoteActivity : AppCompatActivity() {
         if(noteType.equals("New")) {
             menu.findItem(R.id.menu_delete).isVisible=false
         }
-
         return true
     }
 
@@ -232,11 +248,12 @@ class NewNoteActivity : AppCompatActivity() {
                 true
             }
             R.id.menu_setting -> {
-                Toast.makeText(this, "Setting is not available", Toast.LENGTH_SHORT).show()
+                printPreview()
                 true
             }
             R.id.menu_about -> {
-                Toast.makeText(this, "About is not available", Toast.LENGTH_SHORT).show()
+                var lineNumber = et_note.lineCount
+                Toast.makeText(this, lineNumber.toString(), Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.menu_editToolbar -> {
@@ -247,6 +264,28 @@ class NewNoteActivity : AppCompatActivity() {
                 super.onOptionsItemSelected(item)
             }
         }
+    }
+
+    private fun printPreview() {
+        var str = et_note.text.toString()
+        var delimiter = " "
+        val words = str.split(delimiter) as ArrayList
+
+        var stringBuffer = StringBuffer()
+        for (word in words) {
+            if (word.substring(0, 1) == "*") {
+                val ww = word.replace("*", "") + " bold "
+                stringBuffer.append(ww)
+            } else if (word.substring(0, 1) == "_") {
+                val ww = word.replace("_", "") + " underline "
+                stringBuffer.append(ww)
+            } else {
+                val ww = "$word simple "
+                stringBuffer.append(ww)
+            }
+        }
+
+        Toast.makeText(this, stringBuffer, Toast.LENGTH_LONG).show()
     }
 
     private fun openEditToolbarTile() {
@@ -341,32 +380,58 @@ class NewNoteActivity : AppCompatActivity() {
             val end = et_note!!.selectionEnd
             //start+end.getTypeface().getStyle()==Typeface.BOLD
 
-            if(faceBold==0)
-                faceBold=1
-            else
-                faceBold=0
+            //spannableString = SpannableString(et_note!!.text.toString())
 
-            list!!.clear()
-            list!!.add(FaceModel(start, end, faceBold,0,0))
+            /*/var itemWord = spannableString.subSequence(start, end).toString()
+            if(fontlist!!.size>0){
+                for(item in fontlist!!){
+                    if(item.faceBold==0 && item.word==itemWord && faceItalic==0 && faceUnderline==0) {
+                        fontlist!!.add(FontModel(start,end,itemWord,1,0,0))
+                        val boldSpan = StyleSpan(Typeface.BOLD)
+                        spannableString.setSpan(
+                            boldSpan,
+                            item.start,
+                            item.end,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    } else if(item.faceBold==1 && item.word==itemWord && faceItalic==0 && faceUnderline==0)  {
+                        fontlist!!.add(FontModel(start,end,itemWord,0,0,0))
+                        val boldSpan = StyleSpan(Typeface.NORMAL)
+                        spannableString.setSpan(
+                            boldSpan,
+                            item.start,
+                            item.end,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    } else {
+                        fontlist!!.add(FontModel(start,end,itemWord,1,0,0))
+                        val boldSpan = StyleSpan(Typeface.BOLD)
+                        spannableString.setSpan(
+                            boldSpan,
+                            start,
+                            end,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    }
+
+                }
+            } else {
+                fontlist!!.add(FontModel(start,end,itemWord,1,0,0))
+                val boldSpan = StyleSpan(Typeface.BOLD)
+                spannableString.setSpan(
+                    boldSpan,
+                    start,
+                    end,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }*/
+
+            val faceModel = FaceModel(start, end, 1,0,0)
+            list!!.add(faceModel)
+            viewModal.addFont(faceModel)
             spannableString = SpannableString(et_note!!.text.toString())
             for (model in list!!) {
-                if(model.faceItalic==1 && model.faceBold==1){
-                    val boldSpan = StyleSpan(Typeface.ITALIC)
-                    spannableString.setSpan(
-                        boldSpan,
-                        model.start,
-                        model.end,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                } else if(model.faceItalic==1) {
-                    val boldSpan = StyleSpan(Typeface.BOLD_ITALIC)
-                    spannableString.setSpan(
-                        boldSpan,
-                        model.start,
-                        model.end,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                } else {
+                if(model.faceBold==1){
                     val boldSpan = StyleSpan(Typeface.BOLD)
                     spannableString.setSpan(
                         boldSpan,
@@ -375,38 +440,97 @@ class NewNoteActivity : AppCompatActivity() {
                         Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                     )
                 }
-
             }
             et_note!!.setText(spannableString)
         }
+
+        /*rb_bold.setOnClickListener {
+            val start = et_note!!.selectionStart
+            val end = et_note!!.selectionEnd
+
+            spannableString = SpannableString(et_note!!.text.toString())
+            try{
+                if(list!!.size>0){
+                    for(item in list!!){
+                        if(item.faceBold==1 && item.start==start && item.end==end){
+                            list!!.add(FaceModel(start, end, 0,0,0))
+                            val boldSpan = StyleSpan(Typeface.NORMAL)
+                            spannableString.setSpan(
+                                boldSpan,
+                                start,
+                                end,
+                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                        } else {
+                            list!!.add(FaceModel(start, end, 1,0,0))
+                            val boldSpan = StyleSpan(Typeface.BOLD)
+                            spannableString.setSpan(
+                                boldSpan,
+                                start,
+                                end,
+                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                        }
+                    }
+                } else {
+                    list!!.add(FaceModel(start, end, 1,0,0))
+                    val boldSpan = StyleSpan(Typeface.BOLD)
+                    spannableString.setSpan(
+                        boldSpan,
+                        start,
+                        end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+                et_note!!.setText(spannableString)
+            }catch(e: Exception){
+                Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show()
+            }
+        }*/
 
         rb_italic.setOnClickListener {
             val start = et_note!!.selectionStart
             val end = et_note!!.selectionEnd
 
-            list!!.add(FaceModel(start, end, 0,1,0))
-            spannableString = SpannableString(et_note!!.text.toString())
-            for (model in list!!) {
-
-                if(model.faceBold==1){
-                    val boldSpan = StyleSpan(Typeface.BOLD_ITALIC)
-                    spannableString.setSpan(
-                        boldSpan,
-                        model.start,
-                        model.end,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
+            try {
+                spannableString = SpannableString(et_note!!.text.toString())
+                if(list!!.size>0) {
+                    for (model in list!!) {
+                        if (model.faceBold == 1 && model.start == start && model.end == end) {
+                            list!!.add(FaceModel(start, end, 1, 1, 0))
+                            val boldSpan = StyleSpan(Typeface.BOLD_ITALIC)
+                            spannableString.setSpan(
+                                boldSpan,
+                               start,
+                               end,
+                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                        } else {
+                            list!!.add(FaceModel(start, end, 0, 1, 0))
+                            val boldSpan = StyleSpan(Typeface.ITALIC)
+                            spannableString.setSpan(
+                                boldSpan,
+                               start,
+                               end,
+                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                        }
+                        et_note!!.setText(spannableString)
+                    }
                 } else {
+                    list!!.add(FaceModel(start, end, 0, 1, 0))
                     val boldSpan = StyleSpan(Typeface.ITALIC)
                     spannableString.setSpan(
                         boldSpan,
-                        model.start,
-                        model.end,
+                        start,
+                        end,
                         Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                     )
+                    et_note!!.setText(spannableString)
                 }
+            }catch (e: Exception){
+                Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show()
             }
-            et_note!!.setText(spannableString)
         }
 
         rb_underLine.setOnClickListener {
@@ -639,6 +763,7 @@ class NewNoteActivity : AppCompatActivity() {
             val pairedDevices = mBluetoothAdapter.getBondedDevices()
             BTDeviceList!!.clear()
             if (pairedDevices.size > 0) {
+
                 for (device in pairedDevices) {
                     BTDeviceList!!.add(device.name)
                 }
@@ -817,75 +942,43 @@ class NewNoteActivity : AppCompatActivity() {
             var titleMsg = "\n$toolbarTitle   $currentDateAndTime\n"
             mmOutputStream!!.write(titleMsg.toByteArray())
 
-            val format = byteArrayOf(27, 33, 0)                     //third parameter of format increase the size of text
+            //val format = byteArrayOf(27, 33, 0)                     //third parameter of format increase the size of text
             //val center = byteArrayOf(0x1b, 'a'.toByte(), 0x01)      // center alignment
             //val left = byteArrayOf(0x1b, 'a'.toByte(), 0x00)        // left alignment
             //val right = byteArrayOf(0x1b, 'a'.toByte(), 0x02)       // right alignment
             //format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
             //format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
 
-            /*var str = et_note.text.toString()
+            var str = et_note.text.toString()
             var delimiter = " "
             val words = str.split(delimiter) as ArrayList
 
-            for(word in words){
-                if(list!!.size>0) {
-                    for (item in list!!) {
-                        var itemWord = spannableString.subSequence(item.start, item.end).toString()
-                        if (word.equals(itemWord)) {
-                            if (item.faceBold == 1) {
-                                val msg = "$itemWord "
-                                format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
-                                mmOutputStream!!.write(format)
-                                mmOutputStream!!.write(msg.toByteArray())
-                                Toast.makeText(this, "Bold called", Toast.LENGTH_SHORT).show()
-                            } else if (item.faceUnderline == 1) {
-                                val msg = "$itemWord "
-                                format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
-                                mmOutputStream!!.write(format)
-                                mmOutputStream!!.write(msg.toByteArray())
-                                Toast.makeText(this, "underline called", Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            val unselectTxt = "$word "
-                            mmOutputStream!!.write(unselectTxt.toByteArray())
-                            Toast.makeText(this, "unselected called", Toast.LENGTH_SHORT).show()
+            for (word in words){
+                if(word.substring(0,1)=="*"){
+                    val ww=word.replace("*","")+" "
+                    val format = byteArrayOf(27, 33, 0)
+                    format[2] = (0x8 or format.get(2).toInt()).toByte()
+                    mmOutputStream!!.write(format)
+                    mmOutputStream!!.write(ww.toByteArray())
+                }else if(word.substring(0,1)=="_"){
+                    val ww=word.replace("_","")+" "
+                    val format = byteArrayOf(27, 33, 0)
+                    format[2] = (0x80 or format.get(2).toInt()).toByte()
+                    mmOutputStream!!.write(format)
+                    mmOutputStream!!.write(ww.toByteArray())
+                } else {
+                    val ww="$word "
+                    mmOutputStream!!.write(ww.toByteArray())
+                }
+
+                val wordcounts = word.length+1;
+                if(newLineList!!.size>0){
+                    for(line in newLineList!!){
+                        if (wordcounts-1==line){
+                            Toast.makeText(this, "$word new Line Comes", Toast.LENGTH_SHORT).show()
                         }
                     }
-                } else {
-                    val unselectTxt = "$word "
-                    mmOutputStream!!.write(unselectTxt.toByteArray())
-                    Toast.makeText(this, "unselected called", Toast.LENGTH_SHORT).show()
                 }
-            }*/
-
-            if(list!!.size>0) {
-                for (item in list!!) {
-                    val format = byteArrayOf(27, 33, 0)
-                    if (item.faceBold == 1 && item.faceUnderline == 1) {
-                        var msg = spannableString.subSequence(item.start, item.end).toString()
-                        msg += "\n"
-                        format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
-                        format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
-                        mmOutputStream!!.write(format)
-                        mmOutputStream!!.write(msg.toByteArray())
-                    } else if (item.faceBold == 1) {
-                        var msg = spannableString.subSequence(item.start, item.end).toString()
-                        msg += "\n"
-                        format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
-                        mmOutputStream!!.write(format)
-                        mmOutputStream!!.write(msg.toByteArray())
-                    } else if (item.faceUnderline == 1) {
-                        var msg = spannableString.subSequence(item.start, item.end).toString()
-                        msg += "\n"
-                        format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
-                        mmOutputStream!!.write(format)
-                        mmOutputStream!!.write(msg.toByteArray())
-                    }
-                }
-            } else {
-                val unselecttxt=et_note.text.toString()
-                mmOutputStream!!.write(unselecttxt.toByteArray())
             }
 
             var newLine="\n"
@@ -899,5 +992,53 @@ class NewNoteActivity : AppCompatActivity() {
                 Toast.LENGTH_SHORT
             ).show()
         }
+    }
+
+    override fun onBackPressed() {
+        super.onBackPressed()
+        addUpdateNote()
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        super.onBackPressed()
+        addUpdateNote()
+        return false
+    }
+
+    override fun onResume() {
+        handler.postDelayed(Runnable {
+            handler.postDelayed(runnable!!, delay.toLong())
+
+            /*var index=et_note.selectionStart
+            if(list!!.size>0) {
+                for (item in list!!) {
+                    if (index >= item.start && index <= item.end && item.faceBold==1) {
+                        Toast.makeText(
+                            this,
+                            spannableString.subSequence(item.start, item.end)
+                                .toString() + " is bold".toString(),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        isBold=true
+                    }
+                }
+            } else {
+                Toast.makeText(
+                    this,
+                    "$index is unBold".toString(),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }*/
+        }.also { runnable = it }, delay.toLong())
+        super.onResume()
+    }
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(runnable!!)
+    }
+
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        return super.onTouchEvent(event)
+        Toast.makeText(this, et_note.text.toString(), Toast.LENGTH_SHORT).show()
     }
 }
