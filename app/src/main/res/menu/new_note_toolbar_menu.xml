@@ -29,6 +29,11 @@
                 android:title="Find Printer"
                 app:showAsAction="never"/>
 
+            <item android:id="@+id/menu_printReview"
+                android:icon="@drawable/ic_baseline_preview_24"
+                android:title="Print Review"
+                app:showAsAction="never"/>
+
             <item android:id="@+id/menu_setting"
                 android:icon="@drawable/ic_baseline_settings_24"
                 android:title="Setting"

@@ -140,7 +140,11 @@ class NewNoteActivity : AppCompatActivity() {
 
         et_note.setOnKeyListener(View.OnKeyListener { v, keyCode, event ->
             if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
-                (newLineList as ArrayList<Int>).add(et_note.selectionStart)
+                if(et_note.selectionStart.toString()!=" ")
+                    et_note.append(" ")
+                else
+                    et_note.append("")
+
                 true
             }
             false
@@ -243,17 +247,20 @@ class NewNoteActivity : AppCompatActivity() {
                     Toast.makeText(this, "${connectedPrinterName} Already Connected", Toast.LENGTH_SHORT).show()
                 true
             }
+            R.id.menu_printReview -> {
+                showPrintView()
+                true
+            }
             R.id.menu_delete -> {
-               deleteNote()
+                deleteNote()
                 true
             }
             R.id.menu_setting -> {
-                printPreview()
+
                 true
             }
             R.id.menu_about -> {
-                var lineNumber = et_note.lineCount
-                Toast.makeText(this, lineNumber.toString(), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, et_note.selectionStart.toString(), Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.menu_editToolbar -> {
@@ -266,26 +273,43 @@ class NewNoteActivity : AppCompatActivity() {
         }
     }
 
-    private fun printPreview() {
+    private fun showPrintView() {
+        val dialogBuilder = android.app.AlertDialog.Builder(this)
+        val inflater = this.layoutInflater
+        val dialogView = inflater.inflate(R.layout.print_preview_dialog, null)
+        dialogBuilder.setView(dialogView)
+
+        val tv_printview = dialogView.findViewById(R.id.tv_printview) as TextView
+
+        dialogBuilder.setTitle("Print Preview")
+        //dialogBuilder.setMessage("Enter data below")
+
+        //set text their apploed font style
         var str = et_note.text.toString()
         var delimiter = " "
         val words = str.split(delimiter) as ArrayList
 
-        var stringBuffer = StringBuffer()
         for (word in words) {
-            if (word.substring(0, 1) == "*") {
-                val ww = word.replace("*", "") + " bold "
-                stringBuffer.append(ww)
-            } else if (word.substring(0, 1) == "_") {
-                val ww = word.replace("_", "") + " underline "
-                stringBuffer.append(ww)
+            if(word.substring(0,1)=="*"){
+                val ww=word.replace("*","")+" "
+                tv_printview.append(Html.fromHtml(
+                    "<b>$ww</b>"
+                ))
+            }else if(word.substring(0,1)=="_"){
+                val ww=word.replace("_","")+" "
+                tv_printview.append(Html.fromHtml(
+                    "<u>$ww</u>"
+                ))
             } else {
-                val ww = "$word simple "
-                stringBuffer.append(ww)
+                tv_printview.append(word+" ")
             }
         }
 
-        Toast.makeText(this, stringBuffer, Toast.LENGTH_LONG).show()
+        dialogBuilder.setNegativeButton(Html.fromHtml("<font color='#FF7F27'>Close</font>"), DialogInterface.OnClickListener { _, _ ->
+
+        })
+        val b = dialogBuilder.create()
+        b.show()
     }
 
     private fun openEditToolbarTile() {
@@ -346,26 +370,6 @@ class NewNoteActivity : AppCompatActivity() {
         b.show()
     }
 
-    private fun boldText() {
-        val start = et_note!!.selectionStart
-        val end = et_note!!.selectionEnd
-
-        list!!.add(FaceModel(start, end, 1,0,0))
-        val spannableString = SpannableString(et_note!!.text.toString())
-        val buffer = StringBuffer()
-        //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
-        for (model in list!!) {
-            val boldSpan = StyleSpan(Typeface.BOLD)
-            spannableString.setSpan(
-                boldSpan,
-                model.start,
-                model.end,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-        }
-        et_note!!.setText(spannableString)
-    }
-
     private fun openFontFormatDialog() {
         val view = layoutInflater.inflate(R.layout.custom_font_format_layout, null, false)
         val closeFormatDailog = view.findViewById<ImageView>(R.id.fontFormatClose)
@@ -376,117 +380,9 @@ class NewNoteActivity : AppCompatActivity() {
         closeFormatDailog.setOnClickListener { formatDialog!!.cancel() }
 
         rb_bold.setOnClickListener {
-            val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-            //start+end.getTypeface().getStyle()==Typeface.BOLD
-
-            //spannableString = SpannableString(et_note!!.text.toString())
-
-            /*/var itemWord = spannableString.subSequence(start, end).toString()
-            if(fontlist!!.size>0){
-                for(item in fontlist!!){
-                    if(item.faceBold==0 && item.word==itemWord && faceItalic==0 && faceUnderline==0) {
-                        fontlist!!.add(FontModel(start,end,itemWord,1,0,0))
-                        val boldSpan = StyleSpan(Typeface.BOLD)
-                        spannableString.setSpan(
-                            boldSpan,
-                            item.start,
-                            item.end,
-                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
-                    } else if(item.faceBold==1 && item.word==itemWord && faceItalic==0 && faceUnderline==0)  {
-                        fontlist!!.add(FontModel(start,end,itemWord,0,0,0))
-                        val boldSpan = StyleSpan(Typeface.NORMAL)
-                        spannableString.setSpan(
-                            boldSpan,
-                            item.start,
-                            item.end,
-                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
-                    } else {
-                        fontlist!!.add(FontModel(start,end,itemWord,1,0,0))
-                        val boldSpan = StyleSpan(Typeface.BOLD)
-                        spannableString.setSpan(
-                            boldSpan,
-                            start,
-                            end,
-                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
-                    }
-
-                }
-            } else {
-                fontlist!!.add(FontModel(start,end,itemWord,1,0,0))
-                val boldSpan = StyleSpan(Typeface.BOLD)
-                spannableString.setSpan(
-                    boldSpan,
-                    start,
-                    end,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-            }*/
-
-            val faceModel = FaceModel(start, end, 1,0,0)
-            list!!.add(faceModel)
-            viewModal.addFont(faceModel)
-            spannableString = SpannableString(et_note!!.text.toString())
-            for (model in list!!) {
-                if(model.faceBold==1){
-                    val boldSpan = StyleSpan(Typeface.BOLD)
-                    spannableString.setSpan(
-                        boldSpan,
-                        model.start,
-                        model.end,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                }
-            }
-            et_note!!.setText(spannableString)
+            var start=et_note.selectionStart
+            et_note.text.insert(start, "*")
         }
-
-        /*rb_bold.setOnClickListener {
-            val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-
-            spannableString = SpannableString(et_note!!.text.toString())
-            try{
-                if(list!!.size>0){
-                    for(item in list!!){
-                        if(item.faceBold==1 && item.start==start && item.end==end){
-                            list!!.add(FaceModel(start, end, 0,0,0))
-                            val boldSpan = StyleSpan(Typeface.NORMAL)
-                            spannableString.setSpan(
-                                boldSpan,
-                                start,
-                                end,
-                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                            )
-                        } else {
-                            list!!.add(FaceModel(start, end, 1,0,0))
-                            val boldSpan = StyleSpan(Typeface.BOLD)
-                            spannableString.setSpan(
-                                boldSpan,
-                                start,
-                                end,
-                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                            )
-                        }
-                    }
-                } else {
-                    list!!.add(FaceModel(start, end, 1,0,0))
-                    val boldSpan = StyleSpan(Typeface.BOLD)
-                    spannableString.setSpan(
-                        boldSpan,
-                        start,
-                        end,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                }
-                et_note!!.setText(spannableString)
-            }catch(e: Exception){
-                Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show()
-            }
-        }*/
 
         rb_italic.setOnClickListener {
             val start = et_note!!.selectionStart
@@ -535,22 +431,7 @@ class NewNoteActivity : AppCompatActivity() {
 
         rb_underLine.setOnClickListener {
             val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-
-            list!!.clear()
-            list!!.add(FaceModel(start, end, 0,0,1))
-            spannableString = SpannableString(et_note!!.text.toString())
-            for (model in list!!) {
-                val underlineSpan = UnderlineSpan()
-                spannableString.setSpan(
-                    underlineSpan,
-                    model.start,
-                    model.end,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-            }
-            et_note!!.setText(spannableString)
-
+            et_note.text.insert(start, "_")
         }
 
         rg_fontJustify.setOnCheckedChangeListener(RadioGroup.OnCheckedChangeListener { radioGroup, i ->
@@ -939,10 +820,13 @@ class NewNoteActivity : AppCompatActivity() {
     fun sendData() {
         try {
 
+            val format = byteArrayOf(27, 33, 0)
             var titleMsg = "\n$toolbarTitle   $currentDateAndTime\n"
+            mmOutputStream!!.write(format)
             mmOutputStream!!.write(titleMsg.toByteArray())
 
-            //val format = byteArrayOf(27, 33, 0)                     //third parameter of format increase the size of text
+            //val format = byteArrayOf(27, 33, 0)
+            //third parameter of format increase the size of text
             //val center = byteArrayOf(0x1b, 'a'.toByte(), 0x01)      // center alignment
             //val left = byteArrayOf(0x1b, 'a'.toByte(), 0x00)        // left alignment
             //val right = byteArrayOf(0x1b, 'a'.toByte(), 0x02)       // right alignment
@@ -956,7 +840,6 @@ class NewNoteActivity : AppCompatActivity() {
             for (word in words){
                 if(word.substring(0,1)=="*"){
                     val ww=word.replace("*","")+" "
-                    val format = byteArrayOf(27, 33, 0)
                     format[2] = (0x8 or format.get(2).toInt()).toByte()
                     mmOutputStream!!.write(format)
                     mmOutputStream!!.write(ww.toByteArray())
@@ -968,16 +851,9 @@ class NewNoteActivity : AppCompatActivity() {
                     mmOutputStream!!.write(ww.toByteArray())
                 } else {
                     val ww="$word "
+                    val format = byteArrayOf(27, 33, 0)
+                    mmOutputStream!!.write(format)
                     mmOutputStream!!.write(ww.toByteArray())
-                }
-
-                val wordcounts = word.length+1;
-                if(newLineList!!.size>0){
-                    for(line in newLineList!!){
-                        if (wordcounts-1==line){
-                            Toast.makeText(this, "$word new Line Comes", Toast.LENGTH_SHORT).show()
-                        }
-                    }
                 }
             }
 
