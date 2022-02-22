@@ -41,6 +41,7 @@
         android:background="@color/appcolor"
         android:gravity="top"
         android:hint="Write Here"
+        android:scrollbars="vertical"
         android:inputType="textMultiLine"
         android:padding="10dp"
         app:layout_constraintEnd_toEndOf="parent"

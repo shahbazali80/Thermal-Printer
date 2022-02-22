@@ -13,6 +13,7 @@ import android.text.*
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.style.UnderlineSpan
+import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
@@ -35,6 +36,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.log
 
 
 class NewNoteActivity : AppCompatActivity() {
@@ -140,10 +142,15 @@ class NewNoteActivity : AppCompatActivity() {
 
         et_note.setOnKeyListener(View.OnKeyListener { v, keyCode, event ->
             if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
-                if(et_note.selectionStart.toString()!=" ")
+
+                var start=et_note.selectionStart
+                val letter=et_note!!.text.toString().substring(start-1,start)
+                if(letter.equals(" "))
+                    et_note.append("^")
+                else {
                     et_note.append(" ")
-                else
-                    et_note.append("")
+                    et_note.append("^")
+                }
 
                 true
             }
@@ -256,7 +263,15 @@ class NewNoteActivity : AppCompatActivity() {
                 true
             }
             R.id.menu_setting -> {
-
+                var str = et_note.text.toString()
+                val words = str.split("\n" , " ") as ArrayList
+                for(item in words){
+                    val n = item.length
+                    if(item.toString()=="")
+                        android.util.Log.d("TAG","new line")
+                    else
+                        android.util.Log.d("TAG",item.toString())
+                }
                 true
             }
             R.id.menu_about -> {
@@ -286,22 +301,29 @@ class NewNoteActivity : AppCompatActivity() {
 
         //set text their apploed font style
         var str = et_note.text.toString()
-        var delimiter = " "
-        val words = str.split(delimiter) as ArrayList
+        str.replace("\\s".toRegex(), " ")
+        val words = str.split(" " , "\n") as ArrayList
 
-        for (word in words) {
-            if(word.substring(0,1)=="*"){
-                val ww=word.replace("*","")+" "
-                tv_printview.append(Html.fromHtml(
-                    "<b>$ww</b>"
-                ))
-            }else if(word.substring(0,1)=="_"){
-                val ww=word.replace("_","")+" "
-                tv_printview.append(Html.fromHtml(
-                    "<u>$ww</u>"
-                ))
-            } else {
-                tv_printview.append(word+" ")
+        for (item in words) {
+            if(item.toString()!=""){
+                if(item[0].toString().equals("*")){
+                    val ww=item.replace("*","")
+                    tv_printview.append(Html.fromHtml(
+                        "<b>$ww</b>"
+                    ))
+                    tv_printview.append(" ")
+                } else if(item[0].toString().equals("_")){
+                    val ww=item.replace("_","")
+                    tv_printview.append(Html.fromHtml(
+                        "<u>$ww</u>"
+                    ))
+                    tv_printview.append(" ")
+                } else if(item[0].toString()=="^") {
+                    val ww=item.replace("^","")+"\n"
+                    tv_printview.append(ww)
+                } else {
+                    tv_printview.append(item+" ")
+                }
             }
         }
 
@@ -363,7 +385,7 @@ class NewNoteActivity : AppCompatActivity() {
             startActivity(Intent(this@NewNoteActivity,MainActivity::class.java))
             finish()
         })
-        dialogBuilder.setNegativeButton("Close", DialogInterface.OnClickListener { dialog, which ->
+        dialogBuilder.setNegativeButton(Html.fromHtml("<font color='#FF7F27'>Close</font>"), DialogInterface.OnClickListener { dialog, which ->
             //pass
         })
         val b = dialogBuilder.create()
@@ -381,7 +403,20 @@ class NewNoteActivity : AppCompatActivity() {
 
         rb_bold.setOnClickListener {
             var start=et_note.selectionStart
-            et_note.text.insert(start, "*")
+            var end=et_note.selectionEnd
+
+            val action_letter=et_note!!.text.toString().substring(start-1,start)
+            val selected_letter=et_note!!.text.toString().substring(start,end)
+            if(action_letter=="*") {
+                et_note.setText(et_note.text.toString().replace("*$selected_letter",selected_letter))
+                Toast.makeText(this, "Bold is removed", Toast.LENGTH_SHORT).show()
+            } else {
+                et_note.text.insert(start, "*")
+                Toast.makeText(this, "Bold is selected", Toast.LENGTH_SHORT).show()
+            }
+
+            rb_bold.isChecked = false;
+
         }
 
         rb_italic.setOnClickListener {
@@ -430,8 +465,20 @@ class NewNoteActivity : AppCompatActivity() {
         }
 
         rb_underLine.setOnClickListener {
-            val start = et_note!!.selectionStart
-            et_note.text.insert(start, "_")
+            val start = et_note.selectionStart
+            val end = et_note.selectionEnd
+
+            val action_letter=et_note!!.text.toString().substring(start-1,start)
+            val selected_letter=et_note!!.text.toString().substring(start,end)
+            if(action_letter=="_") {
+                et_note.setText(et_note.text.toString().replace("_$selected_letter",selected_letter))
+                Toast.makeText(this, "Underline is removed", Toast.LENGTH_SHORT).show()
+            } else {
+                et_note.text.insert(start, "_")
+                Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
+            }
+
+            rb_underLine.isChecked = false
         }
 
         rg_fontJustify.setOnCheckedChangeListener(RadioGroup.OnCheckedChangeListener { radioGroup, i ->
@@ -834,6 +881,41 @@ class NewNoteActivity : AppCompatActivity() {
             //format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
 
             var str = et_note.text.toString()
+            str.replace("\\s".toRegex(), " ")
+            val words = str.split(" " , "\n") as ArrayList
+
+            for (item in words) {
+                if(item.toString()!=""){
+                    if(item[0].toString().equals("*")){
+                        val ww=item.replace("*","")+" "
+                        format[2] = (0x8 or format.get(2).toInt()).toByte()
+                        mmOutputStream!!.write(format)
+                        mmOutputStream!!.write(ww.toByteArray())
+                    } else if(item[0].toString().equals("_")){
+                        val ww=item.replace("_","")
+                        val format = byteArrayOf(27, 33, 0)
+                        format[2] = (0x80 or format.get(2).toInt()).toByte()
+                        mmOutputStream!!.write(format)
+                        mmOutputStream!!.write(ww.toByteArray())
+                        val ww1=" "
+                        val format1 = byteArrayOf(27, 33, 0)
+                        mmOutputStream!!.write(format1)
+                        mmOutputStream!!.write(ww1.toByteArray())
+                    } else if(item[0].toString()=="^") {
+                        val ww=item.replace("^","")+"\n"
+                        val format = byteArrayOf(27, 33, 0)
+                        mmOutputStream!!.write(format)
+                        mmOutputStream!!.write(ww.toByteArray())
+                    } else {
+                        val ww="$item "
+                        val format = byteArrayOf(27, 33, 0)
+                        mmOutputStream!!.write(format)
+                        mmOutputStream!!.write(ww.toByteArray())
+                    }
+                }
+            }
+
+            /*var str = et_note.text.toString()
             var delimiter = " "
             val words = str.split(delimiter) as ArrayList
 
@@ -855,7 +937,7 @@ class NewNoteActivity : AppCompatActivity() {
                     mmOutputStream!!.write(format)
                     mmOutputStream!!.write(ww.toByteArray())
                 }
-            }
+            }*/
 
             var newLine="\n"
             mmOutputStream!!.write(newLine.toByteArray())
@@ -879,42 +961,5 @@ class NewNoteActivity : AppCompatActivity() {
         super.onBackPressed()
         addUpdateNote()
         return false
-    }
-
-    override fun onResume() {
-        handler.postDelayed(Runnable {
-            handler.postDelayed(runnable!!, delay.toLong())
-
-            /*var index=et_note.selectionStart
-            if(list!!.size>0) {
-                for (item in list!!) {
-                    if (index >= item.start && index <= item.end && item.faceBold==1) {
-                        Toast.makeText(
-                            this,
-                            spannableString.subSequence(item.start, item.end)
-                                .toString() + " is bold".toString(),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        isBold=true
-                    }
-                }
-            } else {
-                Toast.makeText(
-                    this,
-                    "$index is unBold".toString(),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }*/
-        }.also { runnable = it }, delay.toLong())
-        super.onResume()
-    }
-    override fun onPause() {
-        super.onPause()
-        handler.removeCallbacks(runnable!!)
-    }
-
-    override fun onTouchEvent(event: MotionEvent?): Boolean {
-        return super.onTouchEvent(event)
-        Toast.makeText(this, et_note.text.toString(), Toast.LENGTH_SHORT).show()
     }
 }
