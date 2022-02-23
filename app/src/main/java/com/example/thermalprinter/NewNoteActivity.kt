@@ -266,11 +266,7 @@ class NewNoteActivity : AppCompatActivity() {
                 var str = et_note.text.toString()
                 val words = str.split("\n" , " ") as ArrayList
                 for(item in words){
-                    val n = item.length
-                    if(item.toString()=="")
-                        android.util.Log.d("TAG","new line")
-                    else
-                        android.util.Log.d("TAG",item.toString())
+                    android.util.Log.d("TAG",item)
                 }
                 true
             }
@@ -305,15 +301,45 @@ class NewNoteActivity : AppCompatActivity() {
         val words = str.split(" " , "\n") as ArrayList
 
         for (item in words) {
-            if(item.toString()!=""){
-                if(item[0].toString().equals("*")){
+            //Log.d("TAG",item+"\t"+item.length.toString()+"\n")
+            if(item!=""){
+
+                /*var isEnd = false
+                var cc=0;
+                var ww : String = ""
+                for(sub in 0..item.length-1){
+                    if(item[sub].toString()=="*") {
+
+                        if(cc==0)
+                            isEnd=true
+                        else
+                            isEnd=false
+                        cc++
+                    }
+                    if(isEnd && item[sub].toString()!="*"){
+                        ww=item[sub].toString()
+                        tv_printview.append(Html.fromHtml(
+                            "<b>$ww</b>"
+                        ))
+                    } else if(item[sub].toString()!="*") {
+                        ww=item[sub].toString()
+                        tv_printview.append(ww)
+                    }
+
+                    if(sub==item.length-1)
+                        tv_printview.append(" ")
+                }
+
+                Log.d("TAG", ww)*/
+
+                if(item[0].toString().equals("*") && item[item.length-1].toString().equals("*")){
                     val ww=item.replace("*","")
                     tv_printview.append(Html.fromHtml(
                         "<b>$ww</b>"
                     ))
                     tv_printview.append(" ")
-                } else if(item[0].toString().equals("_")){
-                    val ww=item.replace("_","")
+                } else if(item[0].toString().equals("#") && item[item.length-1].toString().equals("#")){
+                    val ww=item.replace("#","")
                     tv_printview.append(Html.fromHtml(
                         "<u>$ww</u>"
                     ))
@@ -325,6 +351,8 @@ class NewNoteActivity : AppCompatActivity() {
                     tv_printview.append(item+" ")
                 }
             }
+
+            Log.d("TAG",item.toString())
         }
 
         dialogBuilder.setNegativeButton(Html.fromHtml("<font color='#FF7F27'>Close</font>"), DialogInterface.OnClickListener { _, _ ->
@@ -379,13 +407,13 @@ class NewNoteActivity : AppCompatActivity() {
 
         dialogBuilder.setTitle("Delete Note")
         //dialogBuilder.setMessage("Enter data below")
-        dialogBuilder.setPositiveButton("Delete", DialogInterface.OnClickListener { _, _ ->
+        dialogBuilder.setPositiveButton(Html.fromHtml("<font color='#FF7F27'>Delete</font>"), DialogInterface.OnClickListener { _, _ ->
             viewModal.deleteNote(updatedNote)
             Toast.makeText(this, "Note Deleted", Toast.LENGTH_LONG).show()
             startActivity(Intent(this@NewNoteActivity,MainActivity::class.java))
             finish()
         })
-        dialogBuilder.setNegativeButton(Html.fromHtml("<font color='#FF7F27'>Close</font>"), DialogInterface.OnClickListener { dialog, which ->
+        dialogBuilder.setNegativeButton("Close", DialogInterface.OnClickListener { dialog, which ->
             //pass
         })
         val b = dialogBuilder.create()
@@ -399,24 +427,35 @@ class NewNoteActivity : AppCompatActivity() {
         val rb_italic = view.findViewById<RadioButton>(R.id.rb_italic)
         val rb_underLine = view.findViewById<RadioButton>(R.id.rb_underLine)
         val rg_fontJustify = view.findViewById<RadioGroup>(R.id.rg_fontJustify)
+
         closeFormatDailog.setOnClickListener { formatDialog!!.cancel() }
 
         rb_bold.setOnClickListener {
             var start=et_note.selectionStart
             var end=et_note.selectionEnd
 
-            val action_letter=et_note!!.text.toString().substring(start-1,start)
-            val selected_letter=et_note!!.text.toString().substring(start,end)
-            if(action_letter=="*") {
-                et_note.setText(et_note.text.toString().replace("*$selected_letter",selected_letter))
-                Toast.makeText(this, "Bold is removed", Toast.LENGTH_SHORT).show()
+            var bIndex = start-1
+
+            if(bIndex!=-1) {
+                val first_bold_word = et_note!!.text.toString().substring(bIndex, start)
+
+                val selected_letter = et_note!!.text.toString().substring(start, end)
+                if (first_bold_word == "*") {
+                    et_note.setText(et_note.text.toString().replace("*$selected_letter*", selected_letter))
+                    et_note!!.setSelection(start-1)
+                    Toast.makeText(this, "Bold is removed", Toast.LENGTH_SHORT).show()
+                } else {
+                    et_note.text.insert(start, "*")
+                    et_note.text.insert(end+1, "*")
+                    Toast.makeText(this, "Bold is selected", Toast.LENGTH_SHORT).show()
+                }
             } else {
                 et_note.text.insert(start, "*")
+                et_note.text.insert(end+1, "*")
                 Toast.makeText(this, "Bold is selected", Toast.LENGTH_SHORT).show()
             }
 
             rb_bold.isChecked = false;
-
         }
 
         rb_italic.setOnClickListener {
@@ -468,13 +507,24 @@ class NewNoteActivity : AppCompatActivity() {
             val start = et_note.selectionStart
             val end = et_note.selectionEnd
 
-            val action_letter=et_note!!.text.toString().substring(start-1,start)
-            val selected_letter=et_note!!.text.toString().substring(start,end)
-            if(action_letter=="_") {
-                et_note.setText(et_note.text.toString().replace("_$selected_letter",selected_letter))
-                Toast.makeText(this, "Underline is removed", Toast.LENGTH_SHORT).show()
+            var bIndex = start-1
+
+            if(bIndex!=-1) {
+                val action_letter = et_note!!.text.toString().substring(bIndex, start)
+                val selected_letter = et_note!!.text.toString().substring(start, end)
+
+                if (action_letter == "#") {
+                    et_note.setText(et_note.text.toString().replace("#$selected_letter#", selected_letter))
+                    et_note!!.setSelection(start-1)
+                    Toast.makeText(this, "Underline is removed", Toast.LENGTH_SHORT).show()
+                } else {
+                    et_note.text.insert(start, "#")
+                    et_note.text.insert(end+1, "#")
+                    Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
+                }
             } else {
-                et_note.text.insert(start, "_")
+                et_note.text.insert(start, "#")
+                et_note.text.insert(end+1, "#")
                 Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
             }
 
@@ -891,8 +941,8 @@ class NewNoteActivity : AppCompatActivity() {
                         format[2] = (0x8 or format.get(2).toInt()).toByte()
                         mmOutputStream!!.write(format)
                         mmOutputStream!!.write(ww.toByteArray())
-                    } else if(item[0].toString().equals("_")){
-                        val ww=item.replace("_","")
+                    } else if(item[0].toString().equals("#")){
+                        val ww=item.replace("#","")
                         val format = byteArrayOf(27, 33, 0)
                         format[2] = (0x80 or format.get(2).toInt()).toByte()
                         mmOutputStream!!.write(format)
@@ -914,30 +964,6 @@ class NewNoteActivity : AppCompatActivity() {
                     }
                 }
             }
-
-            /*var str = et_note.text.toString()
-            var delimiter = " "
-            val words = str.split(delimiter) as ArrayList
-
-            for (word in words){
-                if(word.substring(0,1)=="*"){
-                    val ww=word.replace("*","")+" "
-                    format[2] = (0x8 or format.get(2).toInt()).toByte()
-                    mmOutputStream!!.write(format)
-                    mmOutputStream!!.write(ww.toByteArray())
-                }else if(word.substring(0,1)=="_"){
-                    val ww=word.replace("_","")+" "
-                    val format = byteArrayOf(27, 33, 0)
-                    format[2] = (0x80 or format.get(2).toInt()).toByte()
-                    mmOutputStream!!.write(format)
-                    mmOutputStream!!.write(ww.toByteArray())
-                } else {
-                    val ww="$word "
-                    val format = byteArrayOf(27, 33, 0)
-                    mmOutputStream!!.write(format)
-                    mmOutputStream!!.write(ww.toByteArray())
-                }
-            }*/
 
             var newLine="\n"
             mmOutputStream!!.write(newLine.toByteArray())
