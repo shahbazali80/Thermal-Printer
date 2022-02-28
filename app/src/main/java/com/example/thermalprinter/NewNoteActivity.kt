@@ -45,6 +45,7 @@ class NewNoteActivity : AppCompatActivity() {
     var formatDialog: BottomSheetDialog? = null
     var fontFamilyDialog: BottomSheetDialog? = null
     var seekbarValue = 0
+
     lateinit var mBluetoothAdapter: BluetoothAdapter
     lateinit var mmSocket: BluetoothSocket
     lateinit var mmDevice: BluetoothDevice
@@ -351,8 +352,6 @@ class NewNoteActivity : AppCompatActivity() {
                     tv_printview.append(item+" ")
                 }
             }
-
-            Log.d("TAG",item.toString())
         }
 
         dialogBuilder.setNegativeButton(Html.fromHtml("<font color='#FF7F27'>Close</font>"), DialogInterface.OnClickListener { _, _ ->
@@ -375,7 +374,7 @@ class NewNoteActivity : AppCompatActivity() {
 
         et_toolbar.setText(toolbarTitle)
 
-        dialogBuilder.setPositiveButton("Update", DialogInterface.OnClickListener { _, _ ->
+        dialogBuilder.setPositiveButton(Html.fromHtml("<font color='#FF7F27'>Update</font>"), DialogInterface.OnClickListener { _, _ ->
             if(et_toolbar.text.toString().isEmpty() ||  et_toolbar.text.toString().trim().isEmpty()){
                 et_toolbar.setError("Write Note Title")
                 et_toolbar.requestFocus()
@@ -845,9 +844,14 @@ class NewNoteActivity : AppCompatActivity() {
 
         } catch (e: Exception) {
             e.printStackTrace()
+
+            var str = e.toString()
+            val errors = str.split("," , ":") as ArrayList
+            val error_msg=errors[1].toString()+","+errors[2].toString()
+
             Toast.makeText(
                 applicationContext,
-                "Please again try to connect BT Device\n$e",
+                "Failed! try again\n$error_msg",
                 Toast.LENGTH_SHORT
             ).show()
         }
