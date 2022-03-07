@@ -40,9 +40,11 @@
         android:layout_marginTop="60dp"
         android:background="@color/appcolor"
         android:gravity="top"
+        android:imeOptions="actionDone"
         android:hint="Write Here"
+        android:textSize="18dp"
         android:scrollbars="vertical"
-        android:inputType="textMultiLine"
+        android:inputType="textMultiLine|text"
         android:padding="10dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"/>

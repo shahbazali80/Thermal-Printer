@@ -1,21 +1,19 @@
 package com.example.thermalprinter
 
-import androidx.appcompat.app.AppCompatActivity
-import android.widget.TextView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
-import android.os.Bundle
-import com.example.thermalprinter.R
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorManager
+import android.os.Bundle
+import android.util.Log
 import android.view.View
-import androidx.core.view.isGone
-import androidx.core.view.isVisible
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.thermalprinter.NewNoteActivity
 import com.example.thermalprinter.adapter.NoteAdapter
 import com.example.thermalprinter.viewmodel.NoteViewModel
 import kotlinx.android.synthetic.main.activity_main.*
+
 
 class MainActivity : AppCompatActivity() {
 

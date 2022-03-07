@@ -9,10 +9,12 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
-import android.text.*
+import android.text.Html
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.Spanned
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
-import android.text.style.UnderlineSpan
 import android.util.Log
 import android.view.*
 import android.widget.*
@@ -30,13 +32,11 @@ import com.example.thermalprinter.viewmodel.NoteViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.android.synthetic.main.activity_new_note.*
-import kotlinx.android.synthetic.main.custom_font_format_layout.*
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.log
 
 
 class NewNoteActivity : AppCompatActivity() {
@@ -61,12 +61,8 @@ class NewNoteActivity : AppCompatActivity() {
     var list: MutableList<FaceModel>? = null
     var fontlist: MutableList<FontModel>? = null
     var newLineList: MutableList<Int>? = null
-    var isBold = false
-    var isItalic = false
-    var isUnderLine = false
     var isPrinterConnect = false
     var isBtnAddUpdate = false
-    var isFocus = false
 
     var noteType : String ? = null
     var noteTitle : String ? = null
@@ -80,10 +76,6 @@ class NewNoteActivity : AppCompatActivity() {
 
     lateinit var viewModal: NoteViewModel
     var noteID = -1;
-
-    var faceBold = 0;
-    var faceItalic = 0;
-    var faceUnderline = 0;
 
     var handler: Handler = Handler()
     var runnable: Runnable? = null
@@ -143,6 +135,8 @@ class NewNoteActivity : AppCompatActivity() {
 
         et_note.setOnKeyListener(View.OnKeyListener { v, keyCode, event ->
             if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
+
+                Toast.makeText(this, "Entered", Toast.LENGTH_SHORT).show()
 
                 var start=et_note.selectionStart
                 val letter=et_note!!.text.toString().substring(start-1,start)
@@ -296,50 +290,20 @@ class NewNoteActivity : AppCompatActivity() {
         dialogBuilder.setTitle("Print Preview")
         //dialogBuilder.setMessage("Enter data below")
 
-        //set text their apploed font style
         var str = et_note.text.toString()
         str.replace("\\s".toRegex(), " ")
         val words = str.split(" " , "\n") as ArrayList
 
         for (item in words) {
-            //Log.d("TAG",item+"\t"+item.length.toString()+"\n")
             if(item!=""){
 
-                /*var isEnd = false
-                var cc=0;
-                var ww : String = ""
-                for(sub in 0..item.length-1){
-                    if(item[sub].toString()=="*") {
-
-                        if(cc==0)
-                            isEnd=true
-                        else
-                            isEnd=false
-                        cc++
-                    }
-                    if(isEnd && item[sub].toString()!="*"){
-                        ww=item[sub].toString()
-                        tv_printview.append(Html.fromHtml(
-                            "<b>$ww</b>"
-                        ))
-                    } else if(item[sub].toString()!="*") {
-                        ww=item[sub].toString()
-                        tv_printview.append(ww)
-                    }
-
-                    if(sub==item.length-1)
-                        tv_printview.append(" ")
-                }
-
-                Log.d("TAG", ww)*/
-
-                if(item[0].toString().equals("*") && item[item.length-1].toString().equals("*")){
+                if(item[0].toString() == "*" && item[item.length-1].toString() == "*"){
                     val ww=item.replace("*","")
                     tv_printview.append(Html.fromHtml(
                         "<b>$ww</b>"
                     ))
                     tv_printview.append(" ")
-                } else if(item[0].toString().equals("#") && item[item.length-1].toString().equals("#")){
+                } else if(item[0].toString() == "#" && item[item.length-1].toString() == "#"){
                     val ww=item.replace("#","")
                     tv_printview.append(Html.fromHtml(
                         "<u>$ww</u>"
@@ -348,8 +312,16 @@ class NewNoteActivity : AppCompatActivity() {
                 } else if(item[0].toString()=="^") {
                     val ww=item.replace("^","")+"\n"
                     tv_printview.append(ww)
+                } else if(item[0].toString() == "-" && item[item.length-1].toString() == "-"){
+                    val ww=item.replace("-","")
+                    tv_printview.append(Html.fromHtml("<big>$ww</big>"))
+                    tv_printview.append(" ")
+                } else if(item[0].toString() == "•" && item[item.length-1].toString() == "•"){
+                    val ww=item.replace("•","")
+                    tv_printview.append(Html.fromHtml("<small>$ww</small>"))
+                    tv_printview.append(" ")
                 } else {
-                    tv_printview.append(item+" ")
+                    tv_printview.append("$item ")
                 }
             }
         }
@@ -553,23 +525,77 @@ class NewNoteActivity : AppCompatActivity() {
     }
 
     private fun openFontSizeDialog() {
-        val view = layoutInflater.inflate(R.layout.custom_font_size_dialog_layout, null, false)
+        val view = layoutInflater.inflate(R.layout.custom_font_size_layout, null, false)
         val close = view.findViewById<ImageView>(R.id.fontSizeClose)
         val fontSizeShow = view.findViewById<TextView>(R.id.fontSizeTvShow)
         val seekBar = view.findViewById<SeekBar>(R.id.fontSizeSeekbar)
+
+        var MIN = 16
+        var MAX = 36
+        var STEP = 10
+
+        seekBar!!.max=(MAX - MIN) / STEP
         seekBar.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
-                seekbarValue = i
+                seekbarValue = MIN + ( i * STEP )
+
+                if(seekbarValue==16) {
+                    fontSizeShow.text = "small"
+                    applySizeOnText("-")
+                }
+
+                if(seekbarValue==26)
+                    fontSizeShow.text = "Normal"
+
+                if(seekbarValue==36) {
+                    fontSizeShow.text = "Large"
+                    applySizeOnText("•")
+                }
+
+                //et_note!!.textSize = seekbarValue.toFloat()
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar) {}
             override fun onStopTrackingTouch(seekBar: SeekBar) {
-                et_note!!.textSize = seekbarValue.toFloat()
-                fontSizeShow.text = seekbarValue.toString() + ""
+
             }
         })
+
         close.setOnClickListener { sizeDialog!!.cancel() }
         sizeDialog!!.setContentView(view)
+    }
+
+    private fun applySizeOnText(symbol: String) {
+        var start=et_note.selectionStart
+        var end=et_note.selectionEnd
+
+        var bIndex = start-1
+        var actionMsg :  String =""
+
+        if(symbol=="-")
+            actionMsg = "Small"
+        else if(symbol=="•")
+            actionMsg = "Large"
+
+        if(bIndex!=-1) {
+
+            val first_bold_word = et_note!!.text.toString().substring(bIndex, start)
+
+            val selected_letter = et_note!!.text.toString().substring(start, end)
+            if (first_bold_word == symbol) {
+                et_note.setText(et_note.text.toString().replace("$symbol$selected_letter$symbol", selected_letter))
+                et_note!!.setSelection(start-1)
+                Toast.makeText(this, "$actionMsg is removed", Toast.LENGTH_SHORT).show()
+            } else {
+                et_note.text.insert(start, symbol)
+                et_note.text.insert(end+1, symbol)
+                Toast.makeText(this, "$actionMsg is applied", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            et_note.text.insert(start, symbol)
+            et_note.text.insert(end+1, symbol)
+            Toast.makeText(this, "$actionMsg is applied", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun openFontDialog() {
@@ -755,6 +781,7 @@ class NewNoteActivity : AppCompatActivity() {
                 "Error Occur During Find BT Device\n$e",
                 Toast.LENGTH_SHORT
             ).show()
+            Log.d("TAG",e.toString())
         }
     }
 
@@ -940,37 +967,75 @@ class NewNoteActivity : AppCompatActivity() {
 
             for (item in words) {
                 if(item.toString()!=""){
-                    if(item[0].toString().equals("*")){
-                        val ww=item.replace("*","")+" "
-                        format[2] = (0x8 or format.get(2).toInt()).toByte()
-                        mmOutputStream!!.write(format)
-                        mmOutputStream!!.write(ww.toByteArray())
-                    } else if(item[0].toString().equals("#")){
-                        val ww=item.replace("#","")
-                        val format = byteArrayOf(27, 33, 0)
-                        format[2] = (0x80 or format.get(2).toInt()).toByte()
-                        mmOutputStream!!.write(format)
-                        mmOutputStream!!.write(ww.toByteArray())
-                        val ww1=" "
-                        val format1 = byteArrayOf(27, 33, 0)
-                        mmOutputStream!!.write(format1)
-                        mmOutputStream!!.write(ww1.toByteArray())
-                    } else if(item[0].toString()=="^") {
-                        val ww=item.replace("^","")+"\n"
-                        val format = byteArrayOf(27, 33, 0)
-                        mmOutputStream!!.write(format)
-                        mmOutputStream!!.write(ww.toByteArray())
-                    } else {
-                        val ww="$item "
-                        val format = byteArrayOf(27, 33, 0)
-                        mmOutputStream!!.write(format)
-                        mmOutputStream!!.write(ww.toByteArray())
+                    when {
+                        item[0].toString() == "*" -> {
+                            val ww=item.replace("*","")+" "
+                            format[2] = (0x8 or format.get(2).toInt()).toByte()
+                            mmOutputStream!!.write(format)
+                            mmOutputStream!!.write(ww.toByteArray())
+                        }
+                        item[0].toString() == "#" -> {
+                            val ww=item.replace("#","")
+                            val format = byteArrayOf(27, 33, 0)
+                            format[2] = (0x80 or format.get(2).toInt()).toByte()
+                            mmOutputStream!!.write(format)
+                            mmOutputStream!!.write(ww.toByteArray())
+                            val ww1=" "
+                            val format1 = byteArrayOf(27, 33, 0)
+                            mmOutputStream!!.write(format1)
+                            mmOutputStream!!.write(ww1.toByteArray())
+                        }
+                        item[0].toString()=="^" -> {
+                            val ww=item.replace("^","")+"\n"
+                            val format = byteArrayOf(27, 33, 0)
+                            mmOutputStream!!.write(format)
+                            mmOutputStream!!.write(ww.toByteArray())
+                        }
+                        item[0].toString()=="•" -> {
+                            val ww=item.replace("•","")
+                            val format = byteArrayOf(27, 33, 0)
+                            format[2] = (0x0 or format.get(2).toInt()).toByte()
+                            mmOutputStream!!.write(format)
+                            mmOutputStream!!.write(ww.toByteArray())
+                            Log.d("formatCall", "small")
+                            val ww1=" "
+                            val format1 = byteArrayOf(27, 33, 0)
+                            mmOutputStream!!.write(format1)
+                            mmOutputStream!!.write(ww1.toByteArray())
+                        }
+                        item[0].toString()=="-" -> {
+                            val ww=item.replace("-","")
+                            val format = byteArrayOf(27, 33, 0)
+                            format[2] = (0x2 or format.get(2).toInt()).toByte()
+                            mmOutputStream!!.write(format)
+                            mmOutputStream!!.write(ww.toByteArray())
+                            Log.d("formatCall", "large")
+                            val ww1=" "
+                            val format1 = byteArrayOf(27, 33, 0)
+                            mmOutputStream!!.write(format1)
+                            mmOutputStream!!.write(ww1.toByteArray())
+                        }
+                        else -> {
+                            val ww="$item "
+                            val format = byteArrayOf(27, 33, 0)
+                            mmOutputStream!!.write(format)
+                            mmOutputStream!!.write(ww.toByteArray())
+                        }
                     }
                 }
             }
 
             var newLine="\n"
             mmOutputStream!!.write(newLine.toByteArray())
+
+            /*val words = et_note.text.split(" " , "\n") as ArrayList
+            val format = byteArrayOf(29, 33, 0)
+            format[2] = (0x0 or format.get(2).toInt()).toByte()
+            mmOutputStream!!.write(format)
+            mmOutputStream!!.write(words[0].toByteArray())
+            format[2] = (0x2 or format.get(2).toInt()).toByte()
+            mmOutputStream!!.write(format)
+            mmOutputStream!!.write(words[0].toByteArray())*/
 
         } catch (e: Exception) {
             e.printStackTrace()

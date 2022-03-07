@@ -17,6 +17,9 @@
         <entry key="..\:/Bulitin Soft/Printer/Thermal-Printer/app/src/main/res/menu/bottom_main_menu.xml" value="0.36666666666666664" />
         <entry key="..\:/Bulitin Soft/Printer/Thermal-Printer/app/src/main/res/menu/bottom_navi_menu.xml" value="0.36666666666666664" />
         <entry key="..\:/Bulitin Soft/Printer/Thermal-Printer/app/src/main/res/menu/new_note_toolbar_menu.xml" value="0.36666666666666664" />
+        <entry key="..\:/Shahbaz/ThermalPrinter - (Kotlin)/app/src/main/res/layout/activity_new_note.xml" value="0.36666666666666664" />
+        <entry key="..\:/Shahbaz/ThermalPrinter - (Kotlin)/app/src/main/res/layout/custom_font_size_dialog_layout.xml" value="0.36666666666666664" />
+        <entry key="..\:/Shahbaz/ThermalPrinter - (Kotlin)/app/src/main/res/layout/custom_font_size_layout.xml" value="0.36666666666666664" />
         <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/drawable/ic_baseline_delete_24.xml" value="0.1355" />
         <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/drawable/ic_baseline_preview_24.xml" value="0.1" />
         <entry key="..\:/ThermalPrinter - (Kotlin)/app/src/main/res/layout/activity_main.xml" value="0.20102564102564102" />
@@ -60,7 +63,7 @@
       </map>
     </option>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" default="true" project-jdk-name="1.8" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" project-jdk-name="1.8" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/build/classes" />
   </component>
   <component name="ProjectType">
