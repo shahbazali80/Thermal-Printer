@@ -4,8 +4,10 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
+import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Handler
 import android.text.Html
@@ -31,10 +33,6 @@ import java.util.*
 
 class NewNoteActivity : AppCompatActivity() {
 
-    var sizeDialog: BottomSheetDialog? = null
-    var formatDialog: BottomSheetDialog? = null
-    var fontFamilyDialog: BottomSheetDialog? = null
-
     lateinit var mBluetoothAdapter: BluetoothAdapter
     lateinit var mmSocket: BluetoothSocket
     lateinit var mmDevice: BluetoothDevice
@@ -54,12 +52,12 @@ class NewNoteActivity : AppCompatActivity() {
     var noteType : String ? = null
     var noteTitle : String ? = null
     var noteDescription : String ? = null
-    var noteDate : String ? = null
-    var toolbarTitle : String ? = null
+    private var noteDate : String ? = null
+    private var toolbarTitle : String ? = null
     var currentDateAndTime: String ?  = null
     var connectedPrinterName: String ?  = null
 
-    lateinit var viewModal: NoteViewModel
+    private lateinit var viewModal: NoteViewModel
     var noteID = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,12 +67,6 @@ class NewNoteActivity : AppCompatActivity() {
         setSupportActionBar(newNoteToolbar)
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
-        fontFamilyDialog = BottomSheetDialog(this)
-        sizeDialog = BottomSheetDialog(this)
-        formatDialog = BottomSheetDialog(this)
-
-        openFontTextSizeDialog()
-        openFontFormatDialog()
         BTDeviceList = ArrayList()
         newLineList = ArrayList()
 
@@ -96,8 +88,9 @@ class NewNoteActivity : AppCompatActivity() {
             val item: MenuItem = bottomNavigationView.menu.findItem(R.id.doneNote)
             item.title = getString(R.string.update_text)
 
-        } else
-            toolbarTitle="New Note 001"
+        } else {
+            loadAndSavedTitle()
+        }
 
         viewModal = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application))[NoteViewModel::class.java]
 
@@ -105,13 +98,9 @@ class NewNoteActivity : AppCompatActivity() {
             findBT()
 
         bottomNavigationView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
-        fontFamilyDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-        sizeDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-        formatDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
 
         et_note.setOnKeyListener(View.OnKeyListener { _, keyCode, event ->
             if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
-
                 var start=et_note.selectionStart
                 val letter=et_note!!.text.toString().substring(start-1,start)
                 if(letter == " ")
@@ -120,11 +109,36 @@ class NewNoteActivity : AppCompatActivity() {
                     et_note.append(" ")
                     et_note.append("^")
                 }
-
                 true
             }
             false
         })
+    }
+
+    private fun loadAndSavedTitle() {
+        val sharedPreferences : SharedPreferences = getSharedPreferences("myPre", Context.MODE_PRIVATE)
+        val savedTitle : String? = sharedPreferences.getString("titleCount", null)
+
+        var titleNewInt : Int
+        if(savedTitle!=null) {
+            titleNewInt = savedTitle!!.toInt() + 1
+            toolbarTitle = "New Note $titleNewInt"
+            savedTitleToPref(titleNewInt)
+            supportActionBar!!.title = "New Note $titleNewInt"
+        } else {
+            toolbarTitle = "New Note 1"
+            savedTitleToPref(1)
+        }
+
+    }
+
+    private fun savedTitleToPref(titleNewInt: Int) {
+        val sharedPreferences : SharedPreferences = getSharedPreferences("myPre", Context.MODE_PRIVATE)
+        val editor : SharedPreferences.Editor = sharedPreferences.edit()
+        editor.apply {
+            putString("titleCount", titleNewInt.toString())
+                .apply()
+        }
     }
 
     private val mOnNavigationItemSelectedListener: BottomNavigationView.OnNavigationItemSelectedListener =
@@ -132,18 +146,12 @@ class NewNoteActivity : AppCompatActivity() {
             override fun onNavigationItemSelected(item: MenuItem): Boolean {
                 run {
                     when (item.itemId) {
-                        R.id.size -> {
+                        R.id.size -> openSizeDialog()
+                        R.id.format -> openFontDialog()
+                        R.id.printReview -> {
                             when {
-                                et_note!!.hasSelection() -> sizeDialog!!.show()
-                                et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
-                                else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                        R.id.format -> {
-                            when {
-                                et_note!!.hasSelection() -> formatDialog!!.show()
-                                et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
-                                else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
+                                et_note!!.text.isNotEmpty() -> showPrintView()
+                                else -> Toast.makeText(this@NewNoteActivity, "Write something before Print Review", Toast.LENGTH_SHORT).show()
                             }
                         }
                         R.id.doneNote -> {
@@ -155,6 +163,216 @@ class NewNoteActivity : AppCompatActivity() {
                 }
             }
         }
+
+    private fun openFontStyleDialog(firstWord : String) {
+        val view: View = layoutInflater.inflate(R.layout.font_format_layout, null)
+        val dialog = BottomSheetDialog(this)
+        dialog.setContentView(view)
+
+        dialog
+
+        val closeFormatSheet = view.findViewById<ImageView>(R.id.fontFormatDialogClose)
+        val rbBold = view.findViewById<RadioButton>(R.id.rb_bold)
+        val rbUnderLine = view.findViewById<RadioButton>(R.id.rb_underLine)
+
+        closeFormatSheet.setOnClickListener { dialog.cancel() }
+
+        when (firstWord) {
+            "*" -> rbBold.isChecked = true
+            "#" -> rbUnderLine.isChecked = true
+        }
+
+        rbBold.setOnClickListener {
+            var start=et_note.selectionStart
+            var end=et_note.selectionEnd
+
+            var bIndex = start-1
+
+            if(et_note!!.hasSelection()) {
+                if (bIndex != -1) {
+
+                    val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
+                    val word = et_note!!.text.toString().substring(start, end)
+                    when (firstBoldWord) {
+                        "*" -> {
+                            et_note.setText(et_note.text.toString().replace("*$word*", word))
+                            et_note!!.setSelection(start - 1)
+                            rbBold.isChecked = false;
+                        }
+                        "•" -> {
+                            et_note.setText(et_note.text.toString().replace("•$word•", word))
+                            et_note.text.insert(start - 1, "*")
+                            et_note.text.insert(end, "*")
+                        }
+                        "-" -> {
+                            et_note.setText(et_note.text.toString().replace("-$word-", word))
+                            et_note.text.insert(start - 1, "*")
+                            et_note.text.insert(end, "*")
+                        }
+                        "#" -> {
+                            et_note.setText(et_note.text.toString().replace("#$word#", word))
+                            et_note.text.insert(start - 1, "*")
+                            et_note.text.insert(end, "*")
+                        }
+                        else -> {
+                            et_note.text.insert(start, "*")
+                            et_note.text.insert(end + 1, "*")
+                        }
+                    }
+                } else {
+                    et_note.text.insert(start, "*")
+                    et_note.text.insert(end + 1, "*")
+                }
+            } else {
+                Toast.makeText(this, "Please Select some Text", Toast.LENGTH_SHORT).show()
+                rbBold.isChecked = false
+            }
+        }
+
+        rbUnderLine.setOnClickListener {
+            val start = et_note.selectionStart
+            val end = et_note.selectionEnd
+
+            var bIndex = start-1
+
+            if(et_note!!.hasSelection()) {
+                if (bIndex != -1) {
+                    val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
+                    val word = et_note!!.text.toString().substring(start, end)
+
+                    when (firstBoldWord) {
+                        "#" -> {
+                            et_note.setText(et_note.text.toString().replace("#$word#", word))
+                            et_note!!.setSelection(start - 1)
+                            rbUnderLine.isChecked = false
+                        }
+                        "•" -> {
+                            et_note.setText(et_note.text.toString().replace("•$word•", word))
+                            et_note.text.insert(start - 1, "#")
+                            et_note.text.insert(end, "#")
+                        }
+                        "-" -> {
+                            et_note.setText(et_note.text.toString().replace("-$word-", word))
+                            et_note.text.insert(start - 1, "#")
+                            et_note.text.insert(end, "#")
+                        }
+                        "*" -> {
+                            et_note.setText(et_note.text.toString().replace("*$word*", word))
+                            et_note.text.insert(start - 1, "#")
+                            et_note.text.insert(end, "#")
+                        }
+                        else -> {
+                            et_note.text.insert(start, "#")
+                            et_note.text.insert(end + 1, "#")
+                        }
+                    }
+                } else {
+                    et_note.text.insert(start, "#")
+                    et_note.text.insert(end + 1, "#")
+                }
+            } else {
+                Toast.makeText(this, "Please Select some Text", Toast.LENGTH_SHORT).show()
+                rbUnderLine.isChecked = false
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun openFontSizeDialog(firstWord: String) {
+        val view: View = layoutInflater.inflate(R.layout.font_size_layout, null)
+        val dialog = BottomSheetDialog(this)
+        dialog.setContentView(view)
+
+        val close = view.findViewById<ImageView>(R.id.img_close_font_size_dialog)
+        val cbSmall = view.findViewById<CheckBox>(R.id.cb_small_text_size)
+        val cbNormal = view.findViewById<CheckBox>(R.id.cb_normal_text_size)
+        val cbLarge = view.findViewById<CheckBox>(R.id.cb_large_text_size)
+
+        when (firstWord) {
+            "-" -> cbLarge.isChecked = true
+            "•" -> cbSmall.isChecked = true
+            else -> cbNormal.isChecked = true
+        }
+
+        cbSmall.setOnClickListener {
+            if(et_note!!.hasSelection()) {
+                cbNormal.isChecked = false
+                cbLarge.isChecked = false
+                applySizeOnText("•")
+            } else {
+                cbNormal.isChecked = false
+                cbLarge.isChecked = false
+                cbSmall.isChecked = false
+                Toast.makeText(this, "Please Write some Text", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        cbNormal.setOnClickListener {
+            if(et_note!!.hasSelection()) {
+                cbLarge.isChecked = false
+                cbSmall.isChecked = false
+                removeFont()
+            } else {
+                cbLarge.isChecked = false
+                cbSmall.isChecked = false
+                cbNormal.isChecked = false
+                Toast.makeText(this, "Please Write some Text", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        cbLarge.setOnClickListener {
+            if(et_note!!.hasSelection()) {
+                cbNormal.isChecked = false
+                cbSmall.isChecked = false
+                applySizeOnText("-")
+            } else {
+                cbNormal.isChecked = false
+                cbSmall.isChecked = false
+                cbLarge.isChecked = false
+                Toast.makeText(this, "Please Write some Text", Toast.LENGTH_SHORT).show()
+            }
+        }
+        close.setOnClickListener { dialog.cancel() }
+
+        dialog.show()
+    }
+
+    private fun openSizeDialog() {
+        when { et_note!!.hasSelection() -> {
+            var start = et_note.selectionStart
+            var bIndex = start-1
+            if(bIndex!=-1) {
+                if (et_note!!.hasSelection()) {
+                    val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
+                    openFontSizeDialog(firstBoldWord)
+                }
+            } else {
+                openFontStyleDialog("")
+            }
+        }
+            et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
+            else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openFontDialog() {
+        when { et_note!!.hasSelection() -> {
+            var start = et_note.selectionStart
+            var bIndex = start-1
+            if(bIndex!=-1) {
+                if (et_note!!.hasSelection()) {
+                    val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
+                    openFontStyleDialog(firstBoldWord)
+                }
+            } else {
+                openFontStyleDialog("")
+            }
+        }
+            et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
+            else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     private fun addUpdateNote() {
         if(et_note.text.toString().isEmpty() ||  et_note.text.toString().trim().isEmpty()){
@@ -215,30 +433,11 @@ class NewNoteActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_printerOut -> {
-                if(isPrinterConnect) {
-                    try {
-                        sendData()
-                    } catch (e: IOException) {
-                        e.printStackTrace()
-                        Toast.makeText(applicationContext, "Error Occur During Sending Data\n$e", Toast.LENGTH_SHORT).show()
-                    }
-                } else
-                    Toast.makeText(this, "No Printer Device Connected", Toast.LENGTH_SHORT).show()
+                printOutCalled()
                 true
             }
             R.id.menu_findPrinter -> {
-                if(!isPrinterConnect)
-                    findBT()
-                else
-                    Toast.makeText(
-                        this,
-                        "$connectedPrinterName Already Connected",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                true
-            }
-            R.id.menu_printReview -> {
-                showPrintView()
+                findPrintCalled()
                 true
             }
             R.id.menu_delete -> {
@@ -246,15 +445,11 @@ class NewNoteActivity : AppCompatActivity() {
                 true
             }
             R.id.menu_setting -> {
-                var str = et_note.text.toString()
-                val words = str.split("\n" , " ") as ArrayList
-                for(item in words){
-                    android.util.Log.d("TAG",item)
-                }
+                Toast.makeText(this, "Setting is clicked", Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.menu_about -> {
-                Toast.makeText(this, et_note.selectionStart.toString(), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "About is clicked", Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.menu_editToolbar -> {
@@ -265,6 +460,29 @@ class NewNoteActivity : AppCompatActivity() {
                 super.onOptionsItemSelected(item)
             }
         }
+    }
+
+    private fun findPrintCalled() {
+        if(!isPrinterConnect)
+            findBT()
+        else
+            Toast.makeText(
+                this,
+                "$connectedPrinterName Already Connected",
+                Toast.LENGTH_SHORT
+            ).show()
+    }
+
+    private fun printOutCalled() {
+        if(isPrinterConnect) {
+            try {
+                sendData()
+            } catch (e: IOException) {
+                e.printStackTrace()
+                Toast.makeText(applicationContext, "Error Occur During Sending Data\n$e", Toast.LENGTH_SHORT).show()
+            }
+        } else
+            Toast.makeText(this, "No Printer Device Connected", Toast.LENGTH_SHORT).show()
     }
 
     private fun showPrintView() {
@@ -378,147 +596,6 @@ class NewNoteActivity : AppCompatActivity() {
         b.show()
     }
 
-    private fun openFontFormatDialog() {
-        val view = layoutInflater.inflate(R.layout.font_format_layout, null, false)
-        val closeFormatDailog = view.findViewById<ImageView>(R.id.fontFormatDialogClose)
-        val rbBold = view.findViewById<RadioButton>(R.id.rb_bold)
-        val rbUnderLine = view.findViewById<RadioButton>(R.id.rb_underLine)
-
-        closeFormatDailog.setOnClickListener { formatDialog!!.cancel() }
-
-        rbBold.setOnClickListener {
-            var start=et_note.selectionStart
-            var end=et_note.selectionEnd
-
-            var bIndex = start-1
-
-            if(bIndex!=-1) {
-                val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
-
-                val word = et_note!!.text.toString().substring(start, end)
-                when (firstBoldWord) {
-                    "*" -> {
-                        et_note.setText(et_note.text.toString().replace("*$word*", word))
-                        et_note!!.setSelection(start-1)
-                        Toast.makeText(this, "Bold is removed", Toast.LENGTH_SHORT).show()
-                    }
-                    "•" -> {
-                        et_note.setText(et_note.text.toString().replace("•$word•", word))
-                        et_note.text.insert(start-1, "*")
-                        et_note.text.insert(end, "*")
-                        Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
-                    }
-                    "-" -> {
-                        et_note.setText(et_note.text.toString().replace("-$word-", word))
-                        et_note.text.insert(start-1, "*")
-                        et_note.text.insert(end, "*")
-                        Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
-                    }
-                    "#" -> {
-                        et_note.setText(et_note.text.toString().replace("#$word#", word))
-                        et_note.text.insert(start-1, "*")
-                        et_note.text.insert(end, "*")
-                        Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
-                    }
-                    else -> {
-                        et_note.text.insert(start, "*")
-                        et_note.text.insert(end+1, "*")
-                        Toast.makeText(this, "Bold is selected", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } else {
-                et_note.text.insert(start, "*")
-                et_note.text.insert(end+1, "*")
-                Toast.makeText(this, "Bold is selected", Toast.LENGTH_SHORT).show()
-            }
-
-            rbBold.isChecked = false;
-        }
-
-        rbUnderLine.setOnClickListener {
-            val start = et_note.selectionStart
-            val end = et_note.selectionEnd
-
-            var bIndex = start-1
-
-            if(bIndex!=-1) {
-                val firstLetter = et_note!!.text.toString().substring(bIndex, start)
-                val word = et_note!!.text.toString().substring(start, end)
-
-                when (firstLetter) {
-                    "#" -> {
-                        et_note.setText(et_note.text.toString().replace("#$word#", word))
-                        et_note!!.setSelection(start-1)
-                        Toast.makeText(this, "Underline is removed", Toast.LENGTH_SHORT).show()
-                    }
-                    "•" -> {
-                        et_note.setText(et_note.text.toString().replace("•$word•", word))
-                        et_note.text.insert(start-1, "#")
-                        et_note.text.insert(end, "#")
-                        Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
-                    }
-                    "-" -> {
-                        et_note.setText(et_note.text.toString().replace("-$word-", word))
-                        et_note.text.insert(start-1, "#")
-                        et_note.text.insert(end, "#")
-                        Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
-                    }
-                    "*" -> {
-                        et_note.setText(et_note.text.toString().replace("*$word*", word))
-                        et_note.text.insert(start-1, "#")
-                        et_note.text.insert(end, "#")
-                        Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
-                    }
-                    else -> {
-                        et_note.text.insert(start, "#")
-                        et_note.text.insert(end+1, "#")
-                        Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } else {
-                et_note.text.insert(start, "#")
-                et_note.text.insert(end+1, "#")
-                Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
-            }
-
-            rbUnderLine.isChecked = false
-        }
-
-        formatDialog!!.setContentView(view)
-    }
-
-    private fun openFontTextSizeDialog() {
-        val view = layoutInflater.inflate(R.layout.font_size_layout, null, false)
-        val close = view.findViewById<ImageView>(R.id.img_close_font_size_dialog)
-        val cbSmall = view.findViewById<CheckBox>(R.id.cb_small_text_size)
-        val cbNormal = view.findViewById<CheckBox>(R.id.cb_normal_text_size)
-        val cbLarge = view.findViewById<CheckBox>(R.id.cb_large_text_size)
-
-        cbSmall.setOnClickListener {
-            cbNormal.isChecked = false
-            cbLarge.isChecked = false
-            applySizeOnText("•")
-            cbSmall.isChecked = false
-        }
-
-        cbNormal.setOnClickListener {
-            cbLarge.isChecked = false
-            cbSmall.isChecked = false
-            removeFont()
-            cbNormal.isChecked = false
-        }
-
-        cbLarge.setOnClickListener {
-            cbNormal.isChecked = false
-            cbSmall.isChecked = false
-            applySizeOnText("-")
-            cbLarge.isChecked = false
-        }
-
-        close.setOnClickListener { sizeDialog!!.cancel() }
-        sizeDialog!!.setContentView(view)
-    }
-
     private fun removeFont() {
         var start=et_note.selectionStart
         var end=et_note.selectionEnd
@@ -531,12 +608,10 @@ class NewNoteActivity : AppCompatActivity() {
                 "•" -> {
                     et_note.setText(et_note.text.toString().replace("•$word•", word))
                     et_note!!.setSelection(start - 1)
-                    Toast.makeText(this, "Small is removed", Toast.LENGTH_SHORT).show()
                 }
                 "-" -> {
                     et_note.setText(et_note.text.toString().replace("-$word-", word))
                     et_note!!.setSelection(start - 1)
-                    Toast.makeText(this, "Large is removed", Toast.LENGTH_SHORT).show()
                 }
                 else -> {
                     Toast.makeText(this, "Normal Already Applied", Toast.LENGTH_SHORT).show()
@@ -550,12 +625,6 @@ class NewNoteActivity : AppCompatActivity() {
         var end=et_note.selectionEnd
 
         var bIndex = start-1
-        var actionMsg :  String =""
-
-        if(symbol=="-")
-            actionMsg = "Small"
-        else if(symbol=="•")
-            actionMsg = "Large"
 
         if(bIndex!=-1) {
 
@@ -566,36 +635,30 @@ class NewNoteActivity : AppCompatActivity() {
                 symbol -> {
                     et_note.setText(et_note.text.toString().replace("$symbol$word$symbol", word))
                     et_note!!.setSelection(start-1)
-                    Toast.makeText(this, "$actionMsg is removed", Toast.LENGTH_SHORT).show()
                 }
                 "-" -> {
                     et_note.setText(et_note.text.toString().replace("-$word-", word))
                     et_note.text.insert(start-1, symbol)
                     et_note.text.insert(end, symbol)
-                    Toast.makeText(this, "$actionMsg is Applied", Toast.LENGTH_SHORT).show()
                 }
                 "*" -> {
                     et_note.setText(et_note.text.toString().replace("*$word*", word))
                     et_note.text.insert(start-1, symbol)
                     et_note.text.insert(end, symbol)
-                    Toast.makeText(this, "$actionMsg is Applied", Toast.LENGTH_SHORT).show()
                 }
                 "#" -> {
                     et_note.setText(et_note.text.toString().replace("#$word#", word))
                     et_note.text.insert(start-1, symbol)
                     et_note.text.insert(end, symbol)
-                    Toast.makeText(this, "$actionMsg is Applied", Toast.LENGTH_SHORT).show()
                 }
                 else -> {
                     et_note.text.insert(start, symbol)
                     et_note.text.insert(end+1, symbol)
-                    Toast.makeText(this, "$actionMsg is applied", Toast.LENGTH_SHORT).show()
                 }
             }
         } else {
             et_note.text.insert(start, symbol)
             et_note.text.insert(end+1, symbol)
-            Toast.makeText(this, "$actionMsg is applied", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -609,7 +672,7 @@ class NewNoteActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
-            if (!mBluetoothAdapter.isEnabled()) {
+            if (!mBluetoothAdapter.isEnabled) {
                 val enableBluetooth = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                 startActivityForResult(enableBluetooth, 0)
             }
@@ -714,8 +777,8 @@ class NewNoteActivity : AppCompatActivity() {
             val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
             mmSocket = mmDevice!!.createRfcommSocketToServiceRecord(uuid)
             mmSocket.connect()
-            mmOutputStream = mmSocket.getOutputStream()
-            mmInputStream = mmSocket.getInputStream()
+            mmOutputStream = mmSocket.outputStream
+            mmInputStream = mmSocket.inputStream
             beginListenForData()
             Toast.makeText(applicationContext, "$connectedPrinterName Device connected", Toast.LENGTH_LONG).show()
             isPrinterConnect=true
@@ -725,11 +788,11 @@ class NewNoteActivity : AppCompatActivity() {
 
             var str = e.toString()
             val errors = str.split("," , ":") as ArrayList
-            val error_msg=errors[1].toString()+","+errors[2].toString()
+            val errorMsg=errors[1].toString()+","+errors[2].toString()
 
             Toast.makeText(
                 applicationContext,
-                "Failed! try again\n$error_msg",
+                "Failed! try again\n$errorMsg",
                 Toast.LENGTH_SHORT
             ).show()
         }

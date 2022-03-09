@@ -12,6 +12,11 @@
         android:icon="@drawable/font_format"/>
 
     <item
+        android:id="@+id/printReview"
+        android:title="Preview"
+        android:icon="@drawable/print_review"/>
+
+    <item
         android:id="@+id/doneNote"
         android:title="Save"
         android:icon="@drawable/tick_circle"/>
