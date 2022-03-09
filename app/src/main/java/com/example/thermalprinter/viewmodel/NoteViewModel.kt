@@ -3,12 +3,8 @@ package com.example.thermalprinter.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.example.thermalprinter.dao.NoteDao
 import com.example.thermalprinter.database.NoteDatabase
-import com.example.thermalprinter.models.FaceModel
-import com.example.thermalprinter.models.FontModel
 import com.example.thermalprinter.models.NoteModel
 import com.example.thermalprinter.repository.NoteRepository
 import kotlinx.coroutines.Dispatchers
@@ -17,7 +13,7 @@ import kotlinx.coroutines.launch
 class NoteViewModel (application: Application) : AndroidViewModel(application) {
 
     val allNotes : LiveData<List<NoteModel>>
-    val repository : NoteRepository
+    private val repository : NoteRepository
 
     init {
         val dao = NoteDatabase.getDatabase(application).getNotesDao()
@@ -36,9 +32,4 @@ class NoteViewModel (application: Application) : AndroidViewModel(application) {
     fun addNote(note: NoteModel) = viewModelScope.launch(Dispatchers.IO) {
         repository.insert(note)
     }
-
-    fun addFont(faceModel: FaceModel) = viewModelScope.launch(Dispatchers.IO) {
-        repository.insertFont(faceModel)
-    }
-
 }

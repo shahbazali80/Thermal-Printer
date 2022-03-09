@@ -15,12 +15,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ThermalPrinter">
         <activity
-            android:name=".NewNoteActivity"
+            android:name=".ui.NewNoteActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity"
+            android:parentActivityName=".ui.MainActivity"
             android:windowSoftInputMode="adjustResize"/>
         <activity
-            android:name=".SplashScreenActivity"
+            android:name=".ui.SplashScreenActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -29,7 +29,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.MainActivity"
             android:exported="false" />
 
         <meta-data

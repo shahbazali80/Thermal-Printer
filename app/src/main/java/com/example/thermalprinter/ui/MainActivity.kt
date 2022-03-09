@@ -1,15 +1,13 @@
-package com.example.thermalprinter
+package com.example.thermalprinter.ui
 
 import android.content.Intent
-import android.hardware.Sensor
-import android.hardware.SensorManager
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.thermalprinter.R
 import com.example.thermalprinter.adapter.NoteAdapter
 import com.example.thermalprinter.viewmodel.NoteViewModel
 import kotlinx.android.synthetic.main.activity_main.*
@@ -32,19 +30,18 @@ class MainActivity : AppCompatActivity() {
         viewModal = ViewModelProvider(
             this,
             ViewModelProvider.AndroidViewModelFactory.getInstance(application)
-        ).get(NoteViewModel::class.java)
+        )[NoteViewModel::class.java]
 
         viewModal.allNotes.observe(this, Observer { list ->
             list?.let {
-                if(it.isEmpty()){
+                if(it.isNullOrEmpty()){
                     linearLayout.visibility = View.GONE
-                    tv_welcmNote.setText(
-                        "Bluetooth Notes Printer helps to take prints via thermal, lets get started with your first note " +
-                                "by clicking on 'New Note' button bottom right corner"
-                    )
+                    tv_welcmNote.visibility = View.VISIBLE
+                    tv_welcmNote.text = "Bluetooth Notes Printer helps to take prints via thermal, lets get started with your first note " +
+                            "by clicking on 'New Note' button bottom right corner"
                 } else {
-                    linearLayout.visibility = View.VISIBLE
-                    tv_welcm.setText("Notes")
+                    tv_welcmNote.visibility = View.GONE
+                    tv_welcm.text = "Notes"
                     adapter.setList(it)
                 }
             }

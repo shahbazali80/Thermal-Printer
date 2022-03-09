@@ -1,4 +1,4 @@
-package com.example.thermalprinter
+package com.example.thermalprinter.ui
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -6,27 +6,17 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.DialogInterface
 import android.content.Intent
-import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
 import android.text.Html
-import android.text.Spannable
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.StyleSpan
-import android.text.style.TypefaceSpan
 import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
-import android.widget.SeekBar.OnSeekBarChangeListener
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.ViewModelProvider
-import com.example.thermalprinter.models.CustomTypeFaceSpan
-import com.example.thermalprinter.models.FaceModel
-import com.example.thermalprinter.models.FontModel
+import com.example.thermalprinter.R
 import com.example.thermalprinter.models.NoteModel
 import com.example.thermalprinter.viewmodel.NoteViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -44,7 +34,6 @@ class NewNoteActivity : AppCompatActivity() {
     var sizeDialog: BottomSheetDialog? = null
     var formatDialog: BottomSheetDialog? = null
     var fontFamilyDialog: BottomSheetDialog? = null
-    var seekbarValue = 0
 
     lateinit var mBluetoothAdapter: BluetoothAdapter
     lateinit var mmSocket: BluetoothSocket
@@ -57,9 +46,7 @@ class NewNoteActivity : AppCompatActivity() {
 
     @Volatile
     var stopWorker = false
-    lateinit var BTDeviceList: MutableList<String>
-    var list: MutableList<FaceModel>? = null
-    var fontlist: MutableList<FontModel>? = null
+    private lateinit var BTDeviceList: MutableList<String>
     var newLineList: MutableList<Int>? = null
     var isPrinterConnect = false
     var isBtnAddUpdate = false
@@ -72,14 +59,8 @@ class NewNoteActivity : AppCompatActivity() {
     var currentDateAndTime: String ?  = null
     var connectedPrinterName: String ?  = null
 
-    lateinit var spannableString : SpannableString
-
     lateinit var viewModal: NoteViewModel
-    var noteID = -1;
-
-    var handler: Handler = Handler()
-    var runnable: Runnable? = null
-    var delay = 1000
+    var noteID = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,15 +72,11 @@ class NewNoteActivity : AppCompatActivity() {
         fontFamilyDialog = BottomSheetDialog(this)
         sizeDialog = BottomSheetDialog(this)
         formatDialog = BottomSheetDialog(this)
-        openFontDialog()
-        openFontSizeDialog()
+
+        openFontTextSizeDialog()
         openFontFormatDialog()
-        list = ArrayList()
-        fontlist = ArrayList()
         BTDeviceList = ArrayList()
         newLineList = ArrayList()
-
-        list!!.clear()
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
@@ -112,18 +89,17 @@ class NewNoteActivity : AppCompatActivity() {
             noteDescription = intent.getStringExtra("noteDescription")
             noteDate = intent.getStringExtra("noteDate")
             noteID = intent.getIntExtra("noteId", -1)
-            supportActionBar!!.setTitle(noteTitle)
+            supportActionBar!!.title = noteTitle
             et_note.setText(noteDescription)
             toolbarTitle=noteTitle
 
             val item: MenuItem = bottomNavigationView.menu.findItem(R.id.doneNote)
             item.title = getString(R.string.update_text)
-            //item.icon = ContextCompat.getDrawable(activity, R.drawable.ic_barcode)
 
         } else
             toolbarTitle="New Note 001"
 
-        viewModal = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application)).get(NoteViewModel::class.java)
+        viewModal = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application))[NoteViewModel::class.java]
 
         if(!mBluetoothAdapter.isEnabled)
             findBT()
@@ -133,14 +109,12 @@ class NewNoteActivity : AppCompatActivity() {
         sizeDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         formatDialog!!.window!!.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
 
-        et_note.setOnKeyListener(View.OnKeyListener { v, keyCode, event ->
+        et_note.setOnKeyListener(View.OnKeyListener { _, keyCode, event ->
             if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
-
-                Toast.makeText(this, "Entered", Toast.LENGTH_SHORT).show()
 
                 var start=et_note.selectionStart
                 val letter=et_note!!.text.toString().substring(start-1,start)
-                if(letter.equals(" "))
+                if(letter == " ")
                     et_note.append("^")
                 else {
                     et_note.append(" ")
@@ -158,9 +132,20 @@ class NewNoteActivity : AppCompatActivity() {
             override fun onNavigationItemSelected(item: MenuItem): Boolean {
                 run {
                     when (item.itemId) {
-                        R.id.font -> fontFamilyDialog!!.show()
-                        R.id.size -> sizeDialog!!.show()
-                        R.id.format -> formatDialog!!.show()
+                        R.id.size -> {
+                            when {
+                                et_note!!.hasSelection() -> sizeDialog!!.show()
+                                et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
+                                else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        R.id.format -> {
+                            when {
+                                et_note!!.hasSelection() -> formatDialog!!.show()
+                                et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
+                                else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                         R.id.doneNote -> {
                             isBtnAddUpdate=true
                             addUpdateNote()
@@ -173,7 +158,7 @@ class NewNoteActivity : AppCompatActivity() {
 
     private fun addUpdateNote() {
         if(et_note.text.toString().isEmpty() ||  et_note.text.toString().trim().isEmpty()){
-            et_note.setError("Write Something here")
+            et_note.error = "Write Something here"
             et_note.requestFocus()
             et_note.performClick()
         }else {
@@ -219,7 +204,6 @@ class NewNoteActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        //return super.onCreateOptionsMenu(menu);
         menuInflater.inflate(R.menu.new_note_toolbar_menu, menu)
         if(noteType.equals("New")) {
             menu.findItem(R.id.menu_delete).isVisible=false
@@ -231,7 +215,7 @@ class NewNoteActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_printerOut -> {
-                if(isPrinterConnect==true) {
+                if(isPrinterConnect) {
                     try {
                         sendData()
                     } catch (e: IOException) {
@@ -243,10 +227,14 @@ class NewNoteActivity : AppCompatActivity() {
                 true
             }
             R.id.menu_findPrinter -> {
-                if(isPrinterConnect==false)
+                if(!isPrinterConnect)
                     findBT()
                 else
-                    Toast.makeText(this, "${connectedPrinterName} Already Connected", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "$connectedPrinterName Already Connected",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 true
             }
             R.id.menu_printReview -> {
@@ -296,7 +284,6 @@ class NewNoteActivity : AppCompatActivity() {
 
         for (item in words) {
             if(item!=""){
-
                 if(item[0].toString() == "*" && item[item.length-1].toString() == "*"){
                     val ww=item.replace("*","")
                     tv_printview.append(Html.fromHtml(
@@ -344,11 +331,11 @@ class NewNoteActivity : AppCompatActivity() {
         dialogBuilder.setTitle("Update Note Title")
         //dialogBuilder.setMessage("Enter data below")
 
-        et_toolbar.setText(toolbarTitle)
+        et_toolbar.text = toolbarTitle
 
         dialogBuilder.setPositiveButton(Html.fromHtml("<font color='#FF7F27'>Update</font>"), DialogInterface.OnClickListener { _, _ ->
             if(et_toolbar.text.toString().isEmpty() ||  et_toolbar.text.toString().trim().isEmpty()){
-                et_toolbar.setError("Write Note Title")
+                et_toolbar.error = "Write Note Title"
                 et_toolbar.requestFocus()
                 et_toolbar.performClick()
             }else {
@@ -371,7 +358,7 @@ class NewNoteActivity : AppCompatActivity() {
 
         val del_note = dialogView.findViewById(R.id.del_note) as TextView
 
-        del_note.setText("Are you sure you want to delete it?")
+        del_note.text = "Are you sure you want to delete it?"
 
         val updatedNote = NoteModel("Title Note 001", et_note.text.toString(), noteDate.toString())
         updatedNote.id = noteID
@@ -381,7 +368,7 @@ class NewNoteActivity : AppCompatActivity() {
         dialogBuilder.setPositiveButton(Html.fromHtml("<font color='#FF7F27'>Delete</font>"), DialogInterface.OnClickListener { _, _ ->
             viewModal.deleteNote(updatedNote)
             Toast.makeText(this, "Note Deleted", Toast.LENGTH_LONG).show()
-            startActivity(Intent(this@NewNoteActivity,MainActivity::class.java))
+            startActivity(Intent(this@NewNoteActivity, MainActivity::class.java))
             finish()
         })
         dialogBuilder.setNegativeButton("Close", DialogInterface.OnClickListener { dialog, which ->
@@ -392,33 +379,52 @@ class NewNoteActivity : AppCompatActivity() {
     }
 
     private fun openFontFormatDialog() {
-        val view = layoutInflater.inflate(R.layout.custom_font_format_layout, null, false)
-        val closeFormatDailog = view.findViewById<ImageView>(R.id.fontFormatClose)
-        val rb_bold = view.findViewById<RadioButton>(R.id.rb_bold)
-        val rb_italic = view.findViewById<RadioButton>(R.id.rb_italic)
-        val rb_underLine = view.findViewById<RadioButton>(R.id.rb_underLine)
-        val rg_fontJustify = view.findViewById<RadioGroup>(R.id.rg_fontJustify)
+        val view = layoutInflater.inflate(R.layout.font_format_layout, null, false)
+        val closeFormatDailog = view.findViewById<ImageView>(R.id.fontFormatDialogClose)
+        val rbBold = view.findViewById<RadioButton>(R.id.rb_bold)
+        val rbUnderLine = view.findViewById<RadioButton>(R.id.rb_underLine)
 
         closeFormatDailog.setOnClickListener { formatDialog!!.cancel() }
 
-        rb_bold.setOnClickListener {
+        rbBold.setOnClickListener {
             var start=et_note.selectionStart
             var end=et_note.selectionEnd
 
             var bIndex = start-1
 
             if(bIndex!=-1) {
-                val first_bold_word = et_note!!.text.toString().substring(bIndex, start)
+                val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
 
-                val selected_letter = et_note!!.text.toString().substring(start, end)
-                if (first_bold_word == "*") {
-                    et_note.setText(et_note.text.toString().replace("*$selected_letter*", selected_letter))
-                    et_note!!.setSelection(start-1)
-                    Toast.makeText(this, "Bold is removed", Toast.LENGTH_SHORT).show()
-                } else {
-                    et_note.text.insert(start, "*")
-                    et_note.text.insert(end+1, "*")
-                    Toast.makeText(this, "Bold is selected", Toast.LENGTH_SHORT).show()
+                val word = et_note!!.text.toString().substring(start, end)
+                when (firstBoldWord) {
+                    "*" -> {
+                        et_note.setText(et_note.text.toString().replace("*$word*", word))
+                        et_note!!.setSelection(start-1)
+                        Toast.makeText(this, "Bold is removed", Toast.LENGTH_SHORT).show()
+                    }
+                    "•" -> {
+                        et_note.setText(et_note.text.toString().replace("•$word•", word))
+                        et_note.text.insert(start-1, "*")
+                        et_note.text.insert(end, "*")
+                        Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
+                    }
+                    "-" -> {
+                        et_note.setText(et_note.text.toString().replace("-$word-", word))
+                        et_note.text.insert(start-1, "*")
+                        et_note.text.insert(end, "*")
+                        Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
+                    }
+                    "#" -> {
+                        et_note.setText(et_note.text.toString().replace("#$word#", word))
+                        et_note.text.insert(start-1, "*")
+                        et_note.text.insert(end, "*")
+                        Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> {
+                        et_note.text.insert(start, "*")
+                        et_note.text.insert(end+1, "*")
+                        Toast.makeText(this, "Bold is selected", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } else {
                 et_note.text.insert(start, "*")
@@ -426,143 +432,117 @@ class NewNoteActivity : AppCompatActivity() {
                 Toast.makeText(this, "Bold is selected", Toast.LENGTH_SHORT).show()
             }
 
-            rb_bold.isChecked = false;
+            rbBold.isChecked = false;
         }
 
-        rb_italic.setOnClickListener {
-            val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-
-            try {
-                spannableString = SpannableString(et_note!!.text.toString())
-                if(list!!.size>0) {
-                    for (model in list!!) {
-                        if (model.faceBold == 1 && model.start == start && model.end == end) {
-                            list!!.add(FaceModel(start, end, 1, 1, 0))
-                            val boldSpan = StyleSpan(Typeface.BOLD_ITALIC)
-                            spannableString.setSpan(
-                                boldSpan,
-                               start,
-                               end,
-                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                            )
-                        } else {
-                            list!!.add(FaceModel(start, end, 0, 1, 0))
-                            val boldSpan = StyleSpan(Typeface.ITALIC)
-                            spannableString.setSpan(
-                                boldSpan,
-                               start,
-                               end,
-                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                            )
-                        }
-                        et_note!!.setText(spannableString)
-                    }
-                } else {
-                    list!!.add(FaceModel(start, end, 0, 1, 0))
-                    val boldSpan = StyleSpan(Typeface.ITALIC)
-                    spannableString.setSpan(
-                        boldSpan,
-                        start,
-                        end,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                    et_note!!.setText(spannableString)
-                }
-            }catch (e: Exception){
-                Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        rb_underLine.setOnClickListener {
+        rbUnderLine.setOnClickListener {
             val start = et_note.selectionStart
             val end = et_note.selectionEnd
 
             var bIndex = start-1
 
             if(bIndex!=-1) {
-                val action_letter = et_note!!.text.toString().substring(bIndex, start)
-                val selected_letter = et_note!!.text.toString().substring(start, end)
+                val firstLetter = et_note!!.text.toString().substring(bIndex, start)
+                val word = et_note!!.text.toString().substring(start, end)
 
-                if (action_letter == "#") {
-                    et_note.setText(et_note.text.toString().replace("#$selected_letter#", selected_letter))
-                    et_note!!.setSelection(start-1)
-                    Toast.makeText(this, "Underline is removed", Toast.LENGTH_SHORT).show()
-                } else {
-                    et_note.text.insert(start, "#")
-                    et_note.text.insert(end+1, "#")
-                    Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
+                when (firstLetter) {
+                    "#" -> {
+                        et_note.setText(et_note.text.toString().replace("#$word#", word))
+                        et_note!!.setSelection(start-1)
+                        Toast.makeText(this, "Underline is removed", Toast.LENGTH_SHORT).show()
+                    }
+                    "•" -> {
+                        et_note.setText(et_note.text.toString().replace("•$word•", word))
+                        et_note.text.insert(start-1, "#")
+                        et_note.text.insert(end, "#")
+                        Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
+                    }
+                    "-" -> {
+                        et_note.setText(et_note.text.toString().replace("-$word-", word))
+                        et_note.text.insert(start-1, "#")
+                        et_note.text.insert(end, "#")
+                        Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
+                    }
+                    "*" -> {
+                        et_note.setText(et_note.text.toString().replace("*$word*", word))
+                        et_note.text.insert(start-1, "#")
+                        et_note.text.insert(end, "#")
+                        Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> {
+                        et_note.text.insert(start, "#")
+                        et_note.text.insert(end+1, "#")
+                        Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } else {
                 et_note.text.insert(start, "#")
                 et_note.text.insert(end+1, "#")
-                Toast.makeText(this, "Underline is selected", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Underline is Applied", Toast.LENGTH_SHORT).show()
             }
 
-            rb_underLine.isChecked = false
+            rbUnderLine.isChecked = false
         }
 
-        rg_fontJustify.setOnCheckedChangeListener(RadioGroup.OnCheckedChangeListener { radioGroup, i ->
-            val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-
-            when (i) {
-                R.id.rb_left -> {
-                    //et_note!!.gravity = Gravity.LEFT
-                    return@OnCheckedChangeListener
-                }
-                R.id.rb_center -> {
-                    et_note!!.gravity = Gravity.CENTER
-                    return@OnCheckedChangeListener
-                }
-                R.id.rb_right -> {
-                    et_note!!.gravity = Gravity.RIGHT
-                    return@OnCheckedChangeListener
-                }
-            }
-        })
         formatDialog!!.setContentView(view)
     }
 
-    private fun openFontSizeDialog() {
-        val view = layoutInflater.inflate(R.layout.custom_font_size_layout, null, false)
-        val close = view.findViewById<ImageView>(R.id.fontSizeClose)
-        val fontSizeShow = view.findViewById<TextView>(R.id.fontSizeTvShow)
-        val seekBar = view.findViewById<SeekBar>(R.id.fontSizeSeekbar)
+    private fun openFontTextSizeDialog() {
+        val view = layoutInflater.inflate(R.layout.font_size_layout, null, false)
+        val close = view.findViewById<ImageView>(R.id.img_close_font_size_dialog)
+        val cbSmall = view.findViewById<CheckBox>(R.id.cb_small_text_size)
+        val cbNormal = view.findViewById<CheckBox>(R.id.cb_normal_text_size)
+        val cbLarge = view.findViewById<CheckBox>(R.id.cb_large_text_size)
 
-        var MIN = 16
-        var MAX = 36
-        var STEP = 10
+        cbSmall.setOnClickListener {
+            cbNormal.isChecked = false
+            cbLarge.isChecked = false
+            applySizeOnText("•")
+            cbSmall.isChecked = false
+        }
 
-        seekBar!!.max=(MAX - MIN) / STEP
-        seekBar.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
-                seekbarValue = MIN + ( i * STEP )
+        cbNormal.setOnClickListener {
+            cbLarge.isChecked = false
+            cbSmall.isChecked = false
+            removeFont()
+            cbNormal.isChecked = false
+        }
 
-                if(seekbarValue==16) {
-                    fontSizeShow.text = "small"
-                    applySizeOnText("-")
-                }
-
-                if(seekbarValue==26)
-                    fontSizeShow.text = "Normal"
-
-                if(seekbarValue==36) {
-                    fontSizeShow.text = "Large"
-                    applySizeOnText("•")
-                }
-
-                //et_note!!.textSize = seekbarValue.toFloat()
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {
-
-            }
-        })
+        cbLarge.setOnClickListener {
+            cbNormal.isChecked = false
+            cbSmall.isChecked = false
+            applySizeOnText("-")
+            cbLarge.isChecked = false
+        }
 
         close.setOnClickListener { sizeDialog!!.cancel() }
         sizeDialog!!.setContentView(view)
+    }
+
+    private fun removeFont() {
+        var start=et_note.selectionStart
+        var end=et_note.selectionEnd
+
+        var bIndex = start-1
+        if(bIndex!=-1) {
+            val firstLetter = et_note!!.text.toString().substring(bIndex, start)
+            val word = et_note!!.text.toString().substring(start, end)
+            when (firstLetter) {
+                "•" -> {
+                    et_note.setText(et_note.text.toString().replace("•$word•", word))
+                    et_note!!.setSelection(start - 1)
+                    Toast.makeText(this, "Small is removed", Toast.LENGTH_SHORT).show()
+                }
+                "-" -> {
+                    et_note.setText(et_note.text.toString().replace("-$word-", word))
+                    et_note!!.setSelection(start - 1)
+                    Toast.makeText(this, "Large is removed", Toast.LENGTH_SHORT).show()
+                }
+                else -> {
+                    Toast.makeText(this, "Normal Already Applied", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun applySizeOnText(symbol: String) {
@@ -579,173 +559,44 @@ class NewNoteActivity : AppCompatActivity() {
 
         if(bIndex!=-1) {
 
-            val first_bold_word = et_note!!.text.toString().substring(bIndex, start)
+            val firstLetter = et_note!!.text.toString().substring(bIndex, start)
+            val word = et_note!!.text.toString().substring(start, end)
 
-            val selected_letter = et_note!!.text.toString().substring(start, end)
-            if (first_bold_word == symbol) {
-                et_note.setText(et_note.text.toString().replace("$symbol$selected_letter$symbol", selected_letter))
-                et_note!!.setSelection(start-1)
-                Toast.makeText(this, "$actionMsg is removed", Toast.LENGTH_SHORT).show()
-            } else {
-                et_note.text.insert(start, symbol)
-                et_note.text.insert(end+1, symbol)
-                Toast.makeText(this, "$actionMsg is applied", Toast.LENGTH_SHORT).show()
+            when (firstLetter) {
+                symbol -> {
+                    et_note.setText(et_note.text.toString().replace("$symbol$word$symbol", word))
+                    et_note!!.setSelection(start-1)
+                    Toast.makeText(this, "$actionMsg is removed", Toast.LENGTH_SHORT).show()
+                }
+                "-" -> {
+                    et_note.setText(et_note.text.toString().replace("-$word-", word))
+                    et_note.text.insert(start-1, symbol)
+                    et_note.text.insert(end, symbol)
+                    Toast.makeText(this, "$actionMsg is Applied", Toast.LENGTH_SHORT).show()
+                }
+                "*" -> {
+                    et_note.setText(et_note.text.toString().replace("*$word*", word))
+                    et_note.text.insert(start-1, symbol)
+                    et_note.text.insert(end, symbol)
+                    Toast.makeText(this, "$actionMsg is Applied", Toast.LENGTH_SHORT).show()
+                }
+                "#" -> {
+                    et_note.setText(et_note.text.toString().replace("#$word#", word))
+                    et_note.text.insert(start-1, symbol)
+                    et_note.text.insert(end, symbol)
+                    Toast.makeText(this, "$actionMsg is Applied", Toast.LENGTH_SHORT).show()
+                }
+                else -> {
+                    et_note.text.insert(start, symbol)
+                    et_note.text.insert(end+1, symbol)
+                    Toast.makeText(this, "$actionMsg is applied", Toast.LENGTH_SHORT).show()
+                }
             }
         } else {
             et_note.text.insert(start, symbol)
             et_note.text.insert(end+1, symbol)
             Toast.makeText(this, "$actionMsg is applied", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun openFontDialog() {
-        val view = layoutInflater.inflate(R.layout.custom_font_layout, null, false)
-        val font_abril_fatface = view.findViewById<TextView>(R.id.font_abril_fatface)
-        val font_alegreya_sans_regular = view.findViewById<TextView>(R.id.font_alegreya_sans_regular)
-        val font_abeezee_italic = view.findViewById<TextView>(R.id.font_abeezee_italic)
-        val font_calligraffitti = view.findViewById<TextView>(R.id.font_calligraffitti)
-        val font_cookie_regular = view.findViewById<TextView>(R.id.font_cookie_regular)
-        val font_simonetta_italic = view.findViewById<TextView>(R.id.font_simonetta_italic)
-        val closeDialog = view.findViewById<ImageView>(R.id.fontClose)
-
-        closeDialog.setOnClickListener { fontFamilyDialog!!.cancel() }
-
-        font_abril_fatface.setOnClickListener {
-
-            val typeface = ResourcesCompat.getFont(applicationContext, R.font.abril_fatface)
-            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
-
-            val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-            list!!.add(FaceModel(start, end, 0,0,0))
-            spannableString = SpannableString(et_note!!.text.toString())
-
-            for (model in list!!) {
-                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-            et_note!!.setText(spannableString)
-
-            //et_note!!.typeface = typeface
-            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0)
-            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-        }
-        font_alegreya_sans_regular.setOnClickListener {
-            val typeface = ResourcesCompat.getFont(applicationContext, R.font.alegreya_sans_regular)
-            et_note!!.typeface = typeface
-            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(
-                0,
-                0,
-                R.drawable.ic_baseline_done_24,
-                0
-            )
-            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-        }
-        font_abeezee_italic.setOnClickListener {
-
-            val typeface = ResourcesCompat.getFont(applicationContext, R.font.abeezee_italic)
-            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
-
-            val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-            list!!.add(FaceModel(start, end, 0,0,0))
-            spannableString = SpannableString(et_note!!.text.toString())
-
-            for (model in list!!) {
-                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-            et_note!!.setText(spannableString)
-
-            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0)
-            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-        }
-        font_calligraffitti.setOnClickListener {
-
-            val typeface = ResourcesCompat.getFont(applicationContext, R.font.calligraffitti)
-            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
-
-            val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-            list!!.add(FaceModel(start, end, 0,0,0))
-            spannableString = SpannableString(et_note!!.text.toString())
-
-            for (model in list!!) {
-                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-            et_note!!.setText(spannableString)
-
-            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_done_24, 0)
-            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-        }
-        font_cookie_regular.setOnClickListener {
-
-            val typeface = ResourcesCompat.getFont(applicationContext, R.font.cookie_regular)
-            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
-
-            val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-            list!!.add(FaceModel(start, end, 0,0,0))
-            spannableString = SpannableString(et_note!!.text.toString())
-
-            for (model in list!!) {
-                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-            et_note!!.setText(spannableString)
-
-            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(
-                0,
-                0,
-                R.drawable.ic_baseline_done_24,
-                0
-            )
-            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-        }
-        font_simonetta_italic.setOnClickListener {
-
-            val typeface = ResourcesCompat.getFont(applicationContext, R.font.simonetta_italic)
-            val robotoRegularSpan: TypefaceSpan = CustomTypeFaceSpan("",typeface)
-
-            val start = et_note!!.selectionStart
-            val end = et_note!!.selectionEnd
-            list!!.add(FaceModel(start, end, 0,0,0))
-            spannableString = SpannableString(et_note!!.text.toString())
-
-            for (model in list!!) {
-                spannableString.setSpan(robotoRegularSpan, model.start, model.end, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-            et_note!!.setText(spannableString)
-            font_abril_fatface.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_alegreya_sans_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_abeezee_italic.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_calligraffitti.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_cookie_regular.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-            font_simonetta_italic.setCompoundDrawablesWithIntrinsicBounds(
-                0,
-                0,
-                R.drawable.ic_baseline_done_24,
-                0
-            )
-        }
-        fontFamilyDialog!!.setContentView(view)
     }
 
     @SuppressLint("MissingPermission")
@@ -763,7 +614,7 @@ class NewNoteActivity : AppCompatActivity() {
                 startActivityForResult(enableBluetooth, 0)
             }
 
-            val pairedDevices = mBluetoothAdapter.getBondedDevices()
+            val pairedDevices = mBluetoothAdapter.bondedDevices
             BTDeviceList!!.clear()
             if (pairedDevices.size > 0) {
 
@@ -803,12 +654,12 @@ class NewNoteActivity : AppCompatActivity() {
         tv_mybtName.text = mBluetoothAdapter!!.name
         switch_btOn.isChecked = true
 
-        switch_btOn.setOnCheckedChangeListener { buttonView, isChecked ->
+        switch_btOn.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                if(isPrinterConnect==false)
+                if(!isPrinterConnect)
                     findBT()
                 else
-                    Toast.makeText(this, "${connectedPrinterName} Already Connected", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "$connectedPrinterName Already Connected", Toast.LENGTH_SHORT).show()
             } else {
                 mBluetoothAdapter!!.disable()
                 tv_mybtName.text = "BT OFF"
@@ -884,7 +735,7 @@ class NewNoteActivity : AppCompatActivity() {
         }
     }
 
-    fun beginListenForData() {
+    private fun beginListenForData() {
         try {
             val handler = Handler()
 
@@ -953,13 +804,16 @@ class NewNoteActivity : AppCompatActivity() {
             mmOutputStream!!.write(format)
             mmOutputStream!!.write(titleMsg.toByteArray())
 
-            //val format = byteArrayOf(27, 33, 0)
-            //third parameter of format increase the size of text
+            // Fonts that can be implement in Bluetooth Printer
+            //val format = byteArrayOf(27, 33, 0)                     // default format
             //val center = byteArrayOf(0x1b, 'a'.toByte(), 0x01)      // center alignment
             //val left = byteArrayOf(0x1b, 'a'.toByte(), 0x00)        // left alignment
             //val right = byteArrayOf(0x1b, 'a'.toByte(), 0x02)       // right alignment
             //format[2] = (0x8 or format.get(2).toInt()).toByte()     // text bold
             //format[2] = (0x80 or format.get(2).toInt()).toByte()    // Underline
+            //format[2] = (0x0 or format.get(2).toInt()).toByte()     // Smaller
+            //format[2] = (0x1 or format.get(2).toInt()).toByte()     // Medium
+            //format[2] = (0x2 or format.get(2).toInt()).toByte()     // Larger
 
             var str = et_note.text.toString()
             str.replace("\\s".toRegex(), " ")
@@ -1027,15 +881,6 @@ class NewNoteActivity : AppCompatActivity() {
 
             var newLine="\n"
             mmOutputStream!!.write(newLine.toByteArray())
-
-            /*val words = et_note.text.split(" " , "\n") as ArrayList
-            val format = byteArrayOf(29, 33, 0)
-            format[2] = (0x0 or format.get(2).toInt()).toByte()
-            mmOutputStream!!.write(format)
-            mmOutputStream!!.write(words[0].toByteArray())
-            format[2] = (0x2 or format.get(2).toInt()).toByte()
-            mmOutputStream!!.write(format)
-            mmOutputStream!!.write(words[0].toByteArray())*/
 
         } catch (e: Exception) {
             e.printStackTrace()
