@@ -151,8 +151,8 @@ class NewNoteActivity : AppCompatActivity() {
             override fun onNavigationItemSelected(item: MenuItem): Boolean {
                 run {
                     when (item.itemId) {
-                        R.id.size -> openSizeDialog()
-                        R.id.format -> openFontDialog()
+                        R.id.size -> callForSizeDialog()
+                        R.id.format -> callForFormatDialog()
                         R.id.printReview -> {
                             when {
                                 et_note!!.text.isNotEmpty() -> showPrintView()
@@ -169,18 +169,54 @@ class NewNoteActivity : AppCompatActivity() {
             }
         }
 
+    private fun callForFormatDialog() {
+        when { et_note!!.hasSelection() -> {
+            var start = et_note.selectionStart
+            var bIndex = start-1
+            if(bIndex!=-1) {
+                if (et_note!!.hasSelection()) {
+                    val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
+                    openFontStyleDialog(firstBoldWord)
+                }
+            } else {
+                openFontStyleDialog("")
+            }
+        }
+            et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
+            else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun callForSizeDialog() {
+        when { et_note!!.hasSelection() -> {
+            var start = et_note.selectionStart
+            var bIndex = start-1
+            if(bIndex!=-1) {
+                if (et_note!!.hasSelection()) {
+                    val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
+                    openFontSizeDialog(firstBoldWord)
+                }
+            } else {
+                openFontSizeDialog("")
+            }
+        }
+            et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
+            else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun openFontStyleDialog(firstWord : String) {
         val view: View = layoutInflater.inflate(R.layout.font_format_layout, null)
-        val dialog = BottomSheetDialog(this)
-        dialog.setContentView(view)
-
-        dialog
+        val styleDialog = BottomSheetDialog(this)
+        styleDialog.setContentView(view)
 
         val closeFormatSheet = view.findViewById<ImageView>(R.id.fontFormatDialogClose)
         val rbBold = view.findViewById<RadioButton>(R.id.rb_bold)
         val rbUnderLine = view.findViewById<RadioButton>(R.id.rb_underLine)
 
-        closeFormatSheet.setOnClickListener { dialog.cancel() }
+        Log.d("called", "style Dialog called")
+
+        closeFormatSheet.setOnClickListener { styleDialog.cancel() }
 
         when (firstWord) {
             "*" -> rbBold.isChecked = true
@@ -281,18 +317,20 @@ class NewNoteActivity : AppCompatActivity() {
             }
         }
 
-        dialog.show()
+        styleDialog.show()
     }
 
     private fun openFontSizeDialog(firstWord: String) {
         val view: View = layoutInflater.inflate(R.layout.font_size_layout, null)
-        val dialog = BottomSheetDialog(this)
-        dialog.setContentView(view)
+        val sizeDialog = BottomSheetDialog(this)
+        sizeDialog.setContentView(view)
 
         val close = view.findViewById<ImageView>(R.id.img_close_font_size_dialog)
         val rbSmall = view.findViewById<RadioButton>(R.id.rb_small)
         val rbNormal = view.findViewById<RadioButton>(R.id.rb_normal)
         val rbLarge = view.findViewById<RadioButton>(R.id.rb_large)
+
+        Log.d("called", "size Dialog called")
 
         when (firstWord) {
             "-" -> rbLarge.isChecked = true
@@ -338,45 +376,9 @@ class NewNoteActivity : AppCompatActivity() {
                 Toast.makeText(this, "Please Write some Text", Toast.LENGTH_SHORT).show()
             }
         }
-        close.setOnClickListener { dialog.cancel() }
+        close.setOnClickListener { sizeDialog.cancel() }
 
-        dialog.show()
-    }
-
-    private fun openSizeDialog() {
-        when { et_note!!.hasSelection() -> {
-            var start = et_note.selectionStart
-            var bIndex = start-1
-            if(bIndex!=-1) {
-                if (et_note!!.hasSelection()) {
-                    val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
-                    openFontSizeDialog(firstBoldWord)
-                }
-            } else {
-                openFontStyleDialog("")
-            }
-        }
-            et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
-            else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun openFontDialog() {
-        when { et_note!!.hasSelection() -> {
-            var start = et_note.selectionStart
-            var bIndex = start-1
-            if(bIndex!=-1) {
-                if (et_note!!.hasSelection()) {
-                    val firstBoldWord = et_note!!.text.toString().substring(bIndex, start)
-                    openFontStyleDialog(firstBoldWord)
-                }
-            } else {
-                openFontStyleDialog("")
-            }
-        }
-            et_note!!.text.isEmpty() -> Toast.makeText(this@NewNoteActivity, "Please Write some Text", Toast.LENGTH_SHORT).show()
-            else -> Toast.makeText(this@NewNoteActivity, "Please Select Text First", Toast.LENGTH_SHORT).show()
-        }
+        sizeDialog.show()
     }
 
     private fun addUpdateNote() {
@@ -643,6 +645,11 @@ class NewNoteActivity : AppCompatActivity() {
                 }
                 "-" -> {
                     et_note.setText(et_note.text.toString().replace("-$word-", word))
+                    et_note.text.insert(start-1, symbol)
+                    et_note.text.insert(end, symbol)
+                }
+                "•" -> {
+                    et_note.setText(et_note.text.toString().replace("•$word•", word))
                     et_note.text.insert(start-1, symbol)
                     et_note.text.insert(end, symbol)
                 }
