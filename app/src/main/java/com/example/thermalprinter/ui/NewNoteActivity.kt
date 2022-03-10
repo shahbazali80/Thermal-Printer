@@ -1,5 +1,6 @@
 package com.example.thermalprinter.ui
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -8,6 +9,8 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.text.Html
@@ -15,6 +18,7 @@ import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
@@ -42,6 +46,8 @@ class NewNoteActivity : AppCompatActivity() {
     lateinit var readBuffer: ByteArray
     var readBufferPosition = 0
 
+    private val BLUETOOTH_PERMISSION_REQUEST_CODE = 9999
+
     @Volatile
     var stopWorker = false
     private lateinit var BTDeviceList: MutableList<String>
@@ -60,6 +66,8 @@ class NewNoteActivity : AppCompatActivity() {
     private lateinit var viewModal: NoteViewModel
     var noteID = -1
 
+    @RequiresApi(Build.VERSION_CODES.M)
+    @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_new_note)
@@ -69,8 +77,6 @@ class NewNoteActivity : AppCompatActivity() {
 
         BTDeviceList = ArrayList()
         newLineList = ArrayList()
-
-        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
         var sdf = SimpleDateFormat("dd/MMM/yyyy")
         currentDateAndTime = sdf.format(Date())
@@ -94,8 +100,7 @@ class NewNoteActivity : AppCompatActivity() {
 
         viewModal = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application))[NoteViewModel::class.java]
 
-        if(!mBluetoothAdapter.isEnabled)
-            findBT()
+        initializeBluetoothOrRequestPermission()
 
         bottomNavigationView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
 
@@ -964,5 +969,43 @@ class NewNoteActivity : AppCompatActivity() {
         super.onBackPressed()
         addUpdateNote()
         return false
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun initializeBluetoothOrRequestPermission() {
+        val requiredPermissions = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else {
+            listOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN)
+        }
+
+        val missingPermissions = requiredPermissions.filter { permission ->
+            checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missingPermissions.isEmpty()) {
+            initializeBluetooth()
+        } else {
+            requestPermissions(missingPermissions.toTypedArray(), BLUETOOTH_PERMISSION_REQUEST_CODE)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        when (requestCode) {
+            BLUETOOTH_PERMISSION_REQUEST_CODE -> {
+                if (grantResults.none { it != PackageManager.PERMISSION_GRANTED }) {
+                    // all permissions are granted
+                    initializeBluetooth()
+                } else {
+                    // some permissions are not granted
+                }
+            }
+            else -> super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        }
+    }
+
+    private fun initializeBluetooth() {
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+        if(!mBluetoothAdapter.isEnabled)
+            findBT()
     }
 }
