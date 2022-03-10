@@ -28,37 +28,67 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/img_close_font_size_dialog" />
 
-    <CheckBox
-        android:id="@+id/cb_small_text_size"
-        android:layout_width="wrap_content"
+    <RadioGroup
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Small"
-        android:textSize="18dp"
         android:layout_marginTop="20dp"
-        app:layout_constraintEnd_toStartOf="@+id/cb_normal_text_size"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView4" />
-
-    <CheckBox
-        android:id="@+id/cb_normal_text_size"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Normal"
-        android:textSize="18dp"
-        app:layout_constraintEnd_toStartOf="@+id/cb_large_text_size"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toEndOf="@+id/cb_small_text_size"
-        app:layout_constraintTop_toTopOf="@+id/cb_small_text_size" />
-
-    <CheckBox
-        android:id="@+id/cb_large_text_size"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Large"
-        android:textSize="18dp"
+        android:orientation="horizontal"
+        android:weightSum="3"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toEndOf="@+id/cb_normal_text_size"
-        app:layout_constraintTop_toTopOf="@+id/cb_normal_text_size" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView4" >
+
+        <RadioButton
+            android:id="@+id/rb_small"
+            android:layout_width="0dp"
+            android:layout_height="35dp"
+            android:layout_weight="1"
+            android:button="@android:color/transparent"
+            android:background="@drawable/radio_selector"
+            android:textColor="@drawable/text_colors"
+            android:drawablePadding="10dp"
+            android:textSize="15dp"
+            android:elevation="4dp"
+            android:textStyle="bold"
+            android:padding="5dp"
+            android:text="Small"
+            android:layout_margin="5dp"
+            android:gravity="center"/>
+
+        <RadioButton
+            android:id="@+id/rb_normal"
+            android:layout_width="0dp"
+            android:layout_height="35dp"
+            android:layout_weight="1"
+            android:button="@android:color/transparent"
+            android:background="@drawable/radio_selector"
+            android:textColor="@drawable/text_colors"
+            android:drawablePadding="10dp"
+            android:textSize="15dp"
+            android:elevation="4dp"
+            android:textStyle="bold"
+            android:padding="5dp"
+            android:text="Normal"
+            android:layout_margin="5dp"
+            android:gravity="center"/>
+
+        <RadioButton
+            android:id="@+id/rb_large"
+            android:layout_width="0dp"
+            android:layout_height="35dp"
+            android:layout_weight="1"
+            android:button="@android:color/transparent"
+            android:background="@drawable/radio_selector"
+            android:textColor="@drawable/text_colors"
+            android:drawablePadding="10dp"
+            android:textSize="15dp"
+            android:elevation="4dp"
+            android:textStyle="bold"
+            android:padding="5dp"
+            android:layout_margin="5dp"
+            android:text="Large"
+            android:gravity="center"/>
+
+    </RadioGroup>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

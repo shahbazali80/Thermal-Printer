@@ -290,51 +290,51 @@ class NewNoteActivity : AppCompatActivity() {
         dialog.setContentView(view)
 
         val close = view.findViewById<ImageView>(R.id.img_close_font_size_dialog)
-        val cbSmall = view.findViewById<CheckBox>(R.id.cb_small_text_size)
-        val cbNormal = view.findViewById<CheckBox>(R.id.cb_normal_text_size)
-        val cbLarge = view.findViewById<CheckBox>(R.id.cb_large_text_size)
+        val rbSmall = view.findViewById<RadioButton>(R.id.rb_small)
+        val rbNormal = view.findViewById<RadioButton>(R.id.rb_normal)
+        val rbLarge = view.findViewById<RadioButton>(R.id.rb_large)
 
         when (firstWord) {
-            "-" -> cbLarge.isChecked = true
-            "•" -> cbSmall.isChecked = true
-            else -> cbNormal.isChecked = true
+            "-" -> rbLarge.isChecked = true
+            "•" -> rbSmall.isChecked = true
+            else -> rbNormal.isChecked = true
         }
 
-        cbSmall.setOnClickListener {
+        rbSmall.setOnClickListener {
             if(et_note!!.hasSelection()) {
-                cbNormal.isChecked = false
-                cbLarge.isChecked = false
+                rbNormal.isChecked = false
+                rbLarge.isChecked = false
                 applySizeOnText("•")
             } else {
-                cbNormal.isChecked = false
-                cbLarge.isChecked = false
-                cbSmall.isChecked = false
+                rbNormal.isChecked = false
+                rbLarge.isChecked = false
+                rbSmall.isChecked = false
                 Toast.makeText(this, "Please Write some Text", Toast.LENGTH_SHORT).show()
             }
         }
 
-        cbNormal.setOnClickListener {
+        rbNormal.setOnClickListener {
             if(et_note!!.hasSelection()) {
-                cbLarge.isChecked = false
-                cbSmall.isChecked = false
+                rbLarge.isChecked = false
+                rbSmall.isChecked = false
                 removeFont()
             } else {
-                cbLarge.isChecked = false
-                cbSmall.isChecked = false
-                cbNormal.isChecked = false
+                rbLarge.isChecked = false
+                rbSmall.isChecked = false
+                rbNormal.isChecked = false
                 Toast.makeText(this, "Please Write some Text", Toast.LENGTH_SHORT).show()
             }
         }
 
-        cbLarge.setOnClickListener {
+        rbLarge.setOnClickListener {
             if(et_note!!.hasSelection()) {
-                cbNormal.isChecked = false
-                cbSmall.isChecked = false
+                rbNormal.isChecked = false
+                rbSmall.isChecked = false
                 applySizeOnText("-")
             } else {
-                cbNormal.isChecked = false
-                cbSmall.isChecked = false
-                cbLarge.isChecked = false
+                rbNormal.isChecked = false
+                rbSmall.isChecked = false
+                rbLarge.isChecked = false
                 Toast.makeText(this, "Please Write some Text", Toast.LENGTH_SHORT).show()
             }
         }
